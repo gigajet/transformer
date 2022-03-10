@@ -7,9 +7,9 @@ class DotProductScaledAttention (nn.Module):
         super().__init__()
 
     """
-    Q, K: (n, d_k)
-    V: (n, d_v)
-    mask: (n,n) of Boolean, True location is masked, or None if no masking
+    Q, K: (*, n, d_k)
+    V: (*, n, d_v)
+    mask: (*, n, n) of Boolean, True location is masked, or None if no masking
     """
     def forward (self, Q, K, V, mask=None):
         d_k = K.size(-1)
