@@ -2,7 +2,7 @@ import torch
 from math import sqrt
 from torch import nn
 
-class DotProductScaledAttention (nn.Module):
+class ScaledDotProductAttention (nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
@@ -29,7 +29,7 @@ if __name__=="__main__":
         # print('correct ans', an)
         assert(an_.allclose(an))
     
-    att=DotProductScaledAttention()
+    att=ScaledDotProductAttention()
     q1=torch.tensor([
         [1,1,1,1],
         [1,1,1,1],
