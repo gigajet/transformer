@@ -9,7 +9,7 @@ class ScaledDotProductAttention (nn.Module):
     """
     Q, K: (*, n, d_k)
     V: (*, n, d_v)
-    mask: (*, n, n) of Boolean, True location is masked, or None if no masking
+    mask: (*, n, n) of Boolean, True location is masked, or None if no masking.
     """
     def forward (self, Q, K, V, mask=None):
         d_k = K.size(-1)
