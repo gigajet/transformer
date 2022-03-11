@@ -80,4 +80,3 @@ if __name__=="__main__":
     y = torch.ones((2,4,3))
     z = z @ y
     print(z.shape,z)
-    pass
