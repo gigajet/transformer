@@ -14,10 +14,12 @@ class ScaledDotProductAttention (nn.Module):
     def forward (self, Q, K, V, mask=None):
         d_k = K.size(-1)
         score = Q.float() @ K.transpose(-1,-2).float() / sqrt(d_k)
-        score = score.softmax(-1)
         if mask is not None:
             # The trailing _ denotes in-place operation
-            score.masked_fill_(mask, 0)
+            minus_inf = -1e12
+            score.masked_fill_(mask, minus_inf)
+        score = score.softmax(-1)
+        print(score)
         return score @ V.float()
 
 if __name__=="__main__":
@@ -28,6 +30,16 @@ if __name__=="__main__":
         # print('model ans', an_)
         # print('correct ans', an)
         assert(an_.allclose(an))
+
+    # z=torch.tensor([
+    #     [0.4,-1e12,-1e12,-1e12],
+    #     [6,2,-1e12,-1e12],
+    #     [0.25,0.78,0.96,-1e12],
+    #     [7,1.0,1.2,1.15],
+    # ]).float()
+
+    # z=z.softmax(-1)
+    # print('z',z) # Check if upper diagonal is 0
     
     att=ScaledDotProductAttention()
     q1=torch.tensor([
@@ -86,6 +98,7 @@ if __name__=="__main__":
 
     test(att,q1,k1,v1,None,an1)
     test(att,q2,k2,v2,None,an2)
-    test(att,q1,k1,v1,mask1,anmask)
-    test(att,q2,k2,v2,mask1,anmask.float())
+    test(att,q1,k1,v1,mask1,an1)
+    test(att,q2,k2,v2,mask1,an1.float())
+
     print('All sanity check passed')
