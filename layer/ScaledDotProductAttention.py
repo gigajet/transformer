@@ -19,7 +19,6 @@ class ScaledDotProductAttention (nn.Module):
             minus_inf = -1e12
             score.masked_fill_(mask, minus_inf)
         score = score.softmax(-1)
-        print(score)
         return score @ V.float()
 
 if __name__=="__main__":

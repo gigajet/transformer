@@ -23,6 +23,7 @@ if __name__=="__main__":
     enc = TransformerEncoder(1, 512, 2048, 8)
     x = torch.randn(3,128,512)
     y = enc(x)
+    # print(y.shape, x.shape)
     assert(y.shape == x.shape)
 
     enc6 = TransformerEncoder(6, 512, 2048, 8)
