@@ -1,7 +1,10 @@
 import torch
 from torch import nn
 
-from TransformerDecoderLayer import TransformerDecoderLayer
+try:
+    from layer.TransformerDecoderLayer import TransformerDecoderLayer
+except:    
+    from TransformerDecoderLayer import TransformerDecoderLayer
 
 class TransformerDecoder (nn.Module):
     # Assumption: d_in = d_out = d_model for all attention block

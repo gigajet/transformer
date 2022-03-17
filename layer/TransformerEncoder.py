@@ -1,7 +1,10 @@
 import torch
 from torch import nn
 
-from TransformerEncoderLayer import TransformerEncoderLayer
+try:
+    from layer.TransformerEncoderLayer import TransformerEncoderLayer
+except:
+    from TransformerEncoderLayer import TransformerEncoderLayer
 
 class TransformerEncoder (nn.Module):
     def __init__(self, n_layer: int,

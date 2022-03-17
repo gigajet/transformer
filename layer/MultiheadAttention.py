@@ -1,7 +1,10 @@
 import torch
 from torch import nn
 
-from ScaledDotProductAttention import ScaledDotProductAttention
+try:
+    from layer.ScaledDotProductAttention import ScaledDotProductAttention
+except:
+    from ScaledDotProductAttention import ScaledDotProductAttention
 
 class MultiheadAttention (nn.Module):
     """

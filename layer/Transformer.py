@@ -1,11 +1,15 @@
 from typing import Optional
 import torch
 from torch import nn
-from torch import long
 
-from PositionalEncodedEmbedding import PositionalEncodedEmbedding
-from TransformerDecoder import TransformerDecoder
-from TransformerEncoder import TransformerEncoder
+try:
+    from layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
+    from layer.TransformerDecoder import TransformerDecoder
+    from layer.TransformerEncoder import TransformerEncoder
+except:
+    from PositionalEncodedEmbedding import PositionalEncodedEmbedding
+    from TransformerDecoder import TransformerDecoder
+    from TransformerEncoder import TransformerEncoder
 
 class Transformer (nn.Module):
     def __init__(self, 

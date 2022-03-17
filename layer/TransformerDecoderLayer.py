@@ -1,8 +1,12 @@
 import torch
 from torch import nn
 
-from MultiheadAttention import MultiheadAttention
-from PositionwiseFeedForward import PositionwiseFeedForward
+try:
+    from layer.MultiheadAttention import MultiheadAttention
+    from layer.PositionwiseFeedForward import PositionwiseFeedForward
+except:
+    from MultiheadAttention import MultiheadAttention
+    from PositionwiseFeedForward import PositionwiseFeedForward
 
 class TransformerDecoderLayer (nn.Module):
     def __init__(self, d_in: int, d_model: int, d_ff: int, d_out: int, n_head: int) -> None:
