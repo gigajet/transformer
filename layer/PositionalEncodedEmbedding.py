@@ -26,12 +26,13 @@ class PositionalEncodedEmbedding (nn.Module):
         assert(self.positional_encoding.shape == torch.Size([max_seq_len, d_embed]))
 
     """
-    x: (*, max_seq_len) of Long in [0, voc_size-1]
-    output: (*, max_seq_len, d_embed) of Float
+    x: (*, n) of Long in [0, voc_size-1]
+    output: (*, n, d_embed) of Float
     """
     def forward (self, x):
+        n = x.size(-1)
         x = self.input_embedding(x)
-        return x + self.positional_encoding
+        return x + self.positional_encoding[:n, :]
 
 if __name__=="__main__":
     """
@@ -49,3 +50,4 @@ if __name__=="__main__":
     x = torch.randint(0,1023,(63,))
     y = emb(x)
     assert(y.shape == torch.Size([63, 512]))
+    print('Sanity check passed')

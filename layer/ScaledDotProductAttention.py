@@ -13,7 +13,7 @@ class ScaledDotProductAttention (nn.Module):
     """
     def forward (self, Q, K, V, mask=None):
         d_k = K.size(-1)
-        score = Q.float() @ K.transpose(-1,-2).float() / sqrt(d_k)
+        score = Q.float() @ K.transpose(-1,-2).float() / sqrt(d_k) # (*, n, n)
         if mask is not None:
             # The trailing _ denotes in-place operation
             minus_inf = -1e12
