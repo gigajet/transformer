@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from torch import optim as optim
 from layer.Transformer import Transformer
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 # Common alphabet: 0 and 1, and <sos>
 """
