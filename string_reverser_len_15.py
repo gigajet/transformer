@@ -7,6 +7,7 @@ import torch
 from torch import nn
 from torch import optim as optim
 from layer.Transformer import Transformer
+from tqdm.notebook import tqdm
 
 # Common alphabet: 0 and 1, and <sos>
 """
@@ -52,12 +53,12 @@ def evaluate (model, evalset)->float:
     model = model.train()
     return num_correct / total
 
-def train (model, criterion, optimizer, trainset, num_epoch: int, eval_every: int):
+def train (model, criterion, optimizer, trainset, num_epoch: int, print_every: int):
     running_loss = 0.0
     iter = 0
     for epoch in range(num_epoch):
         print('Epoch',epoch+1)
-        for x, y in trainset:
+        for x, y in tqdm(trainset):
 
             target = y[1:]
             ypred = model(x,y)[:-1,:]
@@ -70,9 +71,9 @@ def train (model, criterion, optimizer, trainset, num_epoch: int, eval_every: in
 
             running_loss += loss.item()
             iter += 1
-            if iter % eval_every == 0:
+            if iter % print_every == 0:
                 evaluate(model, trainset)
-                print('iter loss val_acc: ',iter,running_loss / eval_every,val_acc)
+                print('iter loss',iter,running_loss / print_every)
                 running_loss = 0.0
         print('Training acc: ',evaluate(model, ds))
         print('Saving checkpoint...')
