@@ -34,11 +34,14 @@ def generate_dataset (n: int):
     x: Tensor shape (b,15) or (15,)
     output: Tensor shape (b,16) or (16,)
 """
-def translate(model, x):
+def translate(model, x, replay = False):
     y=torch.tensor([2])
-    for _ in range(15):
-        next_elem = model(x,y).argmax(-1)[-1:] # (1,)
-        y = torch.cat((y,next_elem),dim=-1)
+    for i in range(15):
+        next_elem = model(x,y).argmax(-1) # (1,)
+        last_next_elem = next_elem[-1:]
+        y = torch.cat((y,last_next_elem),dim=-1)
+        if replay:
+            print(i+1,next_elem,y)
     return y
 
 def evaluate (model, evalset)->float:
@@ -59,11 +62,10 @@ def train (model, criterion, optimizer, trainset, num_epoch: int, print_every: i
     for epoch in range(num_epoch):
         print('Epoch',epoch+1)
         for x, y in tqdm(trainset):
-
             target = y[1:]
+            optimizer.zero_grad()
             ypred = model(x,y)[:-1,:]
             # print('y ypred target', y.shape, ypred.shape, target.shape)
-            optimizer.zero_grad()
 
             loss = criterion(ypred, target)
             loss.backward()
@@ -82,7 +84,12 @@ def train (model, criterion, optimizer, trainset, num_epoch: int, print_every: i
 if __name__ == "__main__":
     ds = generate_dataset(500)
     model = Transformer(16,3,3,256,4,512,3,3)
-    if sys.argv[1] == "train":
+    if len(sys.argv)<2:
+        model.load_state_dict(torch.load('task1.pth'))
+        x = torch.tensor([1,0,0,1,1,0,0,1,1,0,0,1,1,1,1])
+        y = translate(model, x, replay=True)
+        print('Final: ',y)
+    elif sys.argv[1] == "train":
         # I don't know why but https://blog.floydhub.com/the-transformer-in-pytorch/ say it's important
         for p in model.parameters():
             if p.dim() > 1:
