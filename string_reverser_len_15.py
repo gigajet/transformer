@@ -6,6 +6,7 @@ import random
 import torch
 from torch import nn
 from torch import optim as optim
+from torch.utils.data import DataLoader
 from layer.Transformer import Transformer
 from tqdm import tqdm
 
@@ -56,20 +57,24 @@ def evaluate (model, evalset)->float:
     model = model.train()
     return num_correct / total
 
-def train (model, criterion, optimizer, trainset, num_epoch: int, print_every: int):
+def train (model, criterion, optimizer, trainset, num_epoch: int, 
+    batch_size: int, print_every: int):
+    trainset = DataLoader(trainset, batch_size, True)
     running_loss = 0.0
     iter = 0
     for epoch in range(num_epoch):
         print('Epoch',epoch+1)
-        for x, y in tqdm(trainset):
+        for x,y in tqdm(trainset):
             target = y[1:]
             optimizer.zero_grad()
-            ypred = model(x,y)[:-1,:]
+            with torch.autograd.set_detect_anomaly(True):
+                ypred = model(x,y)[:-1,:]
             # print('y ypred target', y.shape, ypred.shape, target.shape)
-
+            # DONE: Tính loss đúng chưa? ANS: Đúng rồi.
             loss = criterion(ypred, target)
             loss.backward()
             optimizer.step()
+            # Có loss tức là có gradient.
 
             running_loss += loss.item()
             iter += 1
@@ -95,9 +100,9 @@ if __name__ == "__main__":
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-        criterion = nn.CrossEntropyLoss()
+        criterion = nn.CrossEntropyLoss(reduction='sum')
         optimizer = optim.Adam(model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
-        train(model, criterion, optimizer, ds, 10, 100)
+        train(model, criterion, optimizer, ds_loader, 10, 64, 100)
     elif sys.argv[1] == "eval":
         model.load_state_dict(torch.load('task1.pth'))
         eval = generate_dataset(50000)
