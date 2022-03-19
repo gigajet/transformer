@@ -36,12 +36,12 @@ def generate_dataset (n: int):
     output: Tensor shape (b,16) or (16,)
 """
 def translate(model, x, replay = False):
-    y=torch.tensor([2]).repeat_interleave(16,-1)
+    y=torch.tensor([2])
     for i in range(15):
         next_elem = model(x,y).argmax(-1) # (1,)
-        y[i+1] = next_elem[i]
+        y = torch.cat((y, next_elem[-1:]), -1)
         if replay:
-            print('i',i+1,'model_out',next_elem)
+            print('i',i+1,'model-out',next_elem)
             print('y',y)
     return y
 
@@ -97,8 +97,14 @@ if __name__ == "__main__":
         model.eval()
         x = torch.tensor([1,0,0,1,1,0,0,1,1,0,0,1,1,1,1])
         y_ans = torch.tensor([2,1,1,1,1,0,0,1,1,0,0,1,1,0,0,1])
+        for i in range(1,17):
+            print(model(x,y_ans[:i]).argmax(-1)[:15])
+        exit(0)
+        # TODO: IMPLEMENT BEAM SEARCH FOR MOST PROBABLE SENTENCE
         y_pred = model(x,y_ans)
+        y_pred2 = model(x,y_ans[:8])
         print(y_pred.argmax(-1))
+        print(y_pred2.argmax(-1))
         y = translate(model, x, replay=True)
         print('Final: ',y)
     elif sys.argv[1] == "train":
