@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
         criterion = nn.CrossEntropyLoss(reduction='sum')
         optimizer = optim.Adam(model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
-        train(model, criterion, optimizer, ds, 10, 64, 100)
+        train(model, criterion, optimizer, ds, 10, 128, 10)
     elif sys.argv[1] == "eval":
         model.load_state_dict(torch.load('task1.pth'))
         eval = generate_dataset(50000)
