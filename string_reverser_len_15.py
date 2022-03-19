@@ -85,16 +85,20 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
                 evaluate(model, trainset)
                 print('iter loss',iter,running_loss / print_every)
                 running_loss = 0.0
-        print('Training acc: ',evaluate(model, ds))
+        # print('Training acc: ',evaluate(model, ds))
         print('Saving checkpoint...')
         torch.save(model.state_dict(), 'task1.pth')
 
 if __name__ == "__main__":
-    ds = generate_dataset(500)
+    ds = generate_dataset(5000)
     model = Transformer(16,3,3,256,4,512,3,3)
     if len(sys.argv)<2:
         model.load_state_dict(torch.load('task1.pth'))
+        model.eval()
         x = torch.tensor([1,0,0,1,1,0,0,1,1,0,0,1,1,1,1])
+        y_ans = torch.tensor([1,1,1,1,0,0,1,1,0,0,1,1,0,0,1])
+        y_pred = model(x,y_ans)
+        print(y_pred)
         y = translate(model, x, replay=True)
         print('Final: ',y)
     elif sys.argv[1] == "train":
