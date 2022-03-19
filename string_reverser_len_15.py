@@ -82,7 +82,7 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
             running_loss += loss.item()
             iter += 1
             if iter % print_every == 0:
-                evaluate(model, trainset)
+                #evaluate(model, trainset)
                 print('iter loss',iter,running_loss / print_every)
                 running_loss = 0.0
         # print('Training acc: ',evaluate(model, ds))
