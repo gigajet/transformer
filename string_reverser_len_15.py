@@ -70,6 +70,9 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
             with torch.autograd.set_detect_anomaly(True):
                 ypred = model(x,y)[:,:-1,:]
             # print('y ypred target', y.shape, ypred.shape, target.shape)
+            # Let the first and second dimension be flatten
+            ypred = ypred.reshape(-1,ypred.size(-1)).contiguous()
+            target = target.reshape(-1).contiguous()
             # DONE: Tính loss đúng chưa? ANS: Đúng rồi.
             loss = criterion(ypred, target)
             loss.backward()
