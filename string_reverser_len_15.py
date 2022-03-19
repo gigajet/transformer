@@ -36,13 +36,13 @@ def generate_dataset (n: int):
     output: Tensor shape (b,16) or (16,)
 """
 def translate(model, x, replay = False):
-    y=torch.tensor([2])
+    y=torch.tensor([2]).repeat_interleave(16,-1)
     for i in range(15):
         next_elem = model(x,y).argmax(-1) # (1,)
-        last_next_elem = next_elem[-1:]
-        y = torch.cat((y,last_next_elem),dim=-1)
+        y[i+1] = next_elem[i]
         if replay:
-            print(i+1,next_elem,y)
+            print('i',i+1,'model_out',next_elem)
+            print('y',y)
     return y
 
 def evaluate (model, evalset)->float:
@@ -96,9 +96,9 @@ if __name__ == "__main__":
         model.load_state_dict(torch.load('task1.pth'))
         model.eval()
         x = torch.tensor([1,0,0,1,1,0,0,1,1,0,0,1,1,1,1])
-        y_ans = torch.tensor([1,1,1,1,0,0,1,1,0,0,1,1,0,0,1])
+        y_ans = torch.tensor([2,1,1,1,1,0,0,1,1,0,0,1,1,0,0,1])
         y_pred = model(x,y_ans)
-        print(y_pred)
+        print(y_pred.argmax(-1))
         y = translate(model, x, replay=True)
         print('Final: ',y)
     elif sys.argv[1] == "train":
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
         criterion = nn.CrossEntropyLoss(reduction='sum')
         optimizer = optim.Adam(model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
-        train(model, criterion, optimizer, ds, 10, 128, 10)
+        train(model, criterion, optimizer, ds, 40, 256, 10)
     elif sys.argv[1] == "eval":
         model.load_state_dict(torch.load('task1.pth'))
         eval = generate_dataset(50000)
