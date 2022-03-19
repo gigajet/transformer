@@ -59,12 +59,12 @@ def evaluate (model, evalset)->float:
 
 def train (model, criterion, optimizer, trainset, num_epoch: int, 
     batch_size: int, print_every: int):
-    trainset = DataLoader(trainset, batch_size, True)
+    data_loader = DataLoader(trainset, batch_size, True)
     running_loss = 0.0
     iter = 0
     for epoch in range(num_epoch):
         print('Epoch',epoch+1)
-        for x,y in tqdm(trainset):
+        for x,y in tqdm(data_loader):
             target = y[:,1:]
             optimizer.zero_grad()
             with torch.autograd.set_detect_anomaly(True):
