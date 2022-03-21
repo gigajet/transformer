@@ -9,6 +9,10 @@ from torch import optim as optim
 from torch.utils.data import DataLoader
 from layer.Transformer import Transformer
 from tqdm import tqdm
+from priority_queue import PriorityQueue
+import operator
+import copy
+import math
 
 # Common alphabet: 0 and 1, and <sos>
 """
@@ -32,10 +36,37 @@ def generate_dataset (n: int):
     return output
 
 """
-    x: Tensor shape (b,15) or (15,)
-    output: Tensor shape (b,16) or (16,)
+    x: Tensor shape (15,)
+    output: Tensor shape (16,)
+
+    [Impl detail]
+    Trong [0,1], log là hàm nghịch biến
+    Maximizing prob <=> Maximize log of prob
+
+    We convert prob to log(prob) to avoid vanishing to 0 problem.
 """
-def translate(model, x, replay = False):
+def beam_translate (model, x):
+    pq = PriorityQueue([(1,torch.tensor([2]))], operator.gt)
+    k=0
+    while len(pq)>0:
+        prob, yt = pq.pop()
+        k+=1
+        #if k==3: exit(0)
+        if len(yt) == len(x)+1:
+            return yt
+        pred = model(x,yt).softmax(-1)[-1:, :].squeeze(-2) #(V,)
+        print('lg y pred',prob, yt,pred)
+        # pred = torch.log(pred)
+        pred = pred.tolist()
+        pq.insert(prob*pred[0], torch.cat((yt, torch.tensor([0])), -1))
+        pq.insert(prob*pred[1], torch.cat((yt, torch.tensor([1])), -1))
+    return [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+"""
+    x: Tensor shape (15,)
+    output: Tensor shape (16,)
+"""
+def greedy_translate(model, x, replay = False):
     y=torch.tensor([2])
     for i in range(15):
         next_elem = model(x,y).argmax(-1) # (1,)
@@ -45,7 +76,7 @@ def translate(model, x, replay = False):
             print('y',y)
     return y
 
-def evaluate (model, evalset)->float:
+def evaluate (model, evalset, translate=greedy_translate)->float:
     model = model.eval()
     total=0; num_correct=0
     for x,y in evalset:
@@ -91,21 +122,24 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
 
 if __name__ == "__main__":
     ds = generate_dataset(5000)
-    model = Transformer(16,3,3,256,4,512,3,3)
+    model = Transformer(16,1,1,256,4,512,3,3)
     if len(sys.argv)<2:
         model.load_state_dict(torch.load('task1.pth'))
         model.eval()
         x = torch.tensor([1,0,0,1,1,0,0,1,1,0,0,1,1,1,1])
         y_ans = torch.tensor([2,1,1,1,1,0,0,1,1,0,0,1,1,0,0,1])
-        for i in range(1,17):
-            print(model(x,y_ans[:i]).argmax(-1)[:15])
-        exit(0)
+        # for i in range(1,17):
+        #     print(model(x,y_ans[:i]).argmax(-1)[:15])
         # TODO: IMPLEMENT BEAM SEARCH FOR MOST PROBABLE SENTENCE
         y_pred = model(x,y_ans)
         y_pred2 = model(x,y_ans[:8])
         print(y_pred.argmax(-1))
         print(y_pred2.argmax(-1))
-        y = translate(model, x, replay=True)
+        x = torch.tensor([1,0,0,0,1,0,0,0,1,0,0,0,1,0,0])
+        y_ans = torch.tensor([2,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1])
+        for i in range(1,17):
+            print(model(x,y_ans[:i]).argmax(-1)[:15])
+        y = beam_translate(model, x)
         print('Final: ',y)
     elif sys.argv[1] == "train":
         # I don't know why but https://blog.floydhub.com/the-transformer-in-pytorch/ say it's important
