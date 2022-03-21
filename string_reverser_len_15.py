@@ -76,6 +76,15 @@ def greedy_translate(model, x, replay = False):
             print('y',y)
     return y
 
+def another_greedy(model, x, replay = False):
+    y=torch.tensor([2])
+    for i in range(15):
+        next_elem = model(x,y).argmax(-1)
+        y = torch.cat((torch.tensor([2]), next_elem),-1)
+        if replay:
+            print('i',i+1,'y',y)
+    return y
+
 def evaluate (model, evalset, translate=greedy_translate)->float:
     model = model.eval()
     total=0; num_correct=0
@@ -119,7 +128,7 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
 
 if __name__ == "__main__":
     ds = generate_dataset(5000)
-    model = Transformer(16,1,1,256,4,512,3,3)
+    model = Transformer(16,1,1,256,8,512,3,3)
     if len(sys.argv)<2:
         model.load_state_dict(torch.load('task1.pth'))
         model.eval()
@@ -144,7 +153,7 @@ if __name__ == "__main__":
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-        criterion = nn.CrossEntropyLoss(reduction='sum')
+        criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
         train(model, criterion, optimizer, ds, 40, 256)
     elif sys.argv[1] == "eval":
