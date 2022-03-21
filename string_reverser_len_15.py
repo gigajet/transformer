@@ -111,7 +111,7 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
             # Có loss tức là có gradient.
 
             running_loss += loss.item()
-        print('iter loss',iter,running_loss / print_every)
+        print('iter loss',iter,running_loss)
         running_loss = 0.0
         # print('Training acc: ',evaluate(model, ds))
         print('Saving checkpoint...')
