@@ -89,7 +89,7 @@ def evaluate (model, evalset, translate=greedy_translate)->float:
     return num_correct / total
 
 def train (model, criterion, optimizer, trainset, num_epoch: int, 
-    batch_size: int, print_every: int):
+    batch_size: int):
     data_loader = DataLoader(trainset, batch_size, True)
     running_loss = 0.0
     iter = 0
@@ -111,11 +111,8 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
             # Có loss tức là có gradient.
 
             running_loss += loss.item()
-            iter += 1
-            if iter % print_every == 0:
-                #evaluate(model, trainset)
-                print('iter loss',iter,running_loss / print_every)
-                running_loss = 0.0
+        print('iter loss',iter,running_loss / print_every)
+        running_loss = 0.0
         # print('Training acc: ',evaluate(model, ds))
         print('Saving checkpoint...')
         torch.save(model.state_dict(), 'task1.pth')
@@ -149,7 +146,7 @@ if __name__ == "__main__":
 
         criterion = nn.CrossEntropyLoss(reduction='sum')
         optimizer = optim.Adam(model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
-        train(model, criterion, optimizer, ds, 40, 256, 10)
+        train(model, criterion, optimizer, ds, 40, 256)
     elif sys.argv[1] == "eval":
         model.load_state_dict(torch.load('task1.pth'))
         eval = generate_dataset(50000)
