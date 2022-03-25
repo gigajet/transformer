@@ -50,4 +50,8 @@ if __name__=="__main__":
     x = torch.randint(0,1023,(63,))
     y = emb(x)
     assert(y.shape == torch.Size([63, 512]))
+
+    x = torch.randint(0,1023,(128,63))
+    y = emb(x)
+    assert(y.shape == torch.Size([128, 63, 512]))
     print('Sanity check passed')

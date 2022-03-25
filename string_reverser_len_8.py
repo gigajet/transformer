@@ -53,7 +53,7 @@ def beam_translate (model, x):
         prob, yt = pq.pop()
         k+=1
         #if k==3: exit(0)
-        if len(yt) == len(x)+1:
+        if len(yt) == LEN + 1:
             return yt
         pred = model(x,yt).softmax(-1)[-1:, :].squeeze(-2) #(V,)
         print('lg y pred',prob, yt,pred)
@@ -69,7 +69,7 @@ def beam_translate (model, x):
 """
 def greedy_translate(model, x, replay = False):
     y=torch.tensor([26])
-    for i in range(15):
+    for i in range(LEN):
         next_elem = model(x,y).argmax(-1) # (1,)
         y = torch.cat((y, next_elem[-1:]), -1)
         if replay:
@@ -79,7 +79,7 @@ def greedy_translate(model, x, replay = False):
 
 def another_greedy(model, x, replay = False):
     y=torch.tensor([26])
-    for i in range(15):
+    for i in range(LEN):
         next_elem = model(x,y).argmax(-1)
         y = torch.cat((torch.tensor([2]), next_elem),-1)
         if replay:
@@ -133,8 +133,8 @@ if __name__ == "__main__":
     if len(sys.argv)<2:
         model.load_state_dict(torch.load('task2.pth'))
         model.eval()
-        x = torch.tensor([1,0,0,1,1,0,0,1,1,0,0,1,1,1,1])
-        y_ans = torch.tensor([2,1,1,1,1,0,0,1,1,0,0,1,1,0,0,1])
+        x = torch.tensor([1,2,3,4,5,6,7,8])
+        y_ans = torch.tensor([26,8,7,6,5,4,3,2,1])
         # for i in range(1,17):
         #     print(model(x,y_ans[:i]).argmax(-1)[:15])
         # TODO: IMPLEMENT BEAM SEARCH FOR MOST PROBABLE SENTENCE
@@ -142,10 +142,8 @@ if __name__ == "__main__":
         y_pred2 = model(x,y_ans[:8])
         print(y_pred.argmax(-1))
         print(y_pred2.argmax(-1))
-        x = torch.tensor([1,0,0,0,1,0,0,0,1,0,0,0,1,0,0])
-        y_ans = torch.tensor([2,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1])
-        for i in range(1,17):
-            print(model(x,y_ans[:i]).argmax(-1)[:15])
+        for i in range(1,9):
+            print(model(x,y_ans[:i]).argmax(-1))
         y = beam_translate(model, x)
         print('Final: ',y)
     elif sys.argv[1] == "train":
@@ -154,9 +152,9 @@ if __name__ == "__main__":
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-        criterion = nn.CrossEntropyLoss()
+        criterion = nn.CrossEntropyLoss(reduction='sum')
         optimizer = optim.Adam(model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
-        train(model, criterion, optimizer, ds, 40, 256)
+        train(model, criterion, optimizer, ds, 80, 128)
     elif sys.argv[1] == "eval":
         model.load_state_dict(torch.load('task2.pth'))
         eval = generate_dataset(50000)

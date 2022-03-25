@@ -4,15 +4,13 @@ Custom task 1: reverse bit string of length 15
 import sys
 import random
 import torch
-from torch import nn
+from torch import nn    
 from torch import optim as optim
 from torch.utils.data import DataLoader
 from layer.Transformer import Transformer
 from tqdm import tqdm
 from priority_queue import PriorityQueue
 import operator
-import copy
-import math
 
 # Common alphabet: 0 and 1, and <sos>
 """
@@ -43,6 +41,10 @@ def generate_dataset (n: int):
     Trong [0,1], log là hàm nghịch biến
     Maximizing prob <=> Maximize log of prob
 
+    P([y_1, y_2, y_3, ... y_n])
+    = P(y_1)*P(y_2 | y_1)*P(y3 | y2, y1)*...*P(y_n | y1, y2, y_n-1)
+
+
     We convert prob to log(prob) to avoid vanishing to 0 problem.
 """
 def beam_translate (model, x):
@@ -52,15 +54,15 @@ def beam_translate (model, x):
         prob, yt = pq.pop()
         k+=1
         #if k==3: exit(0)
-        if len(yt) == len(x)+1:
+        if yt.size(-1) == len(x) + 1:
             return yt
         pred = model(x,yt).softmax(-1)[-1:, :].squeeze(-2) #(V,)
-        print('lg y pred',prob, yt,pred)
+        print('lg y',prob, yt)
         # pred = torch.log(pred)
         pred = pred.tolist()
         pq.insert(prob*pred[0], torch.cat((yt, torch.tensor([0])), -1))
         pq.insert(prob*pred[1], torch.cat((yt, torch.tensor([1])), -1))
-    return [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    # return [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 
 """
     x: Tensor shape (15,)
@@ -128,24 +130,24 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
 
 if __name__ == "__main__":
     ds = generate_dataset(5000)
-    model = Transformer(16,1,1,256,8,512,3,3)
+    model = Transformer(16,3,3,256,8,512,3,3)
     if len(sys.argv)<2:
         model.load_state_dict(torch.load('task1.pth'))
         model.eval()
         x = torch.tensor([1,0,0,1,1,0,0,1,1,0,0,1,1,1,1])
         y_ans = torch.tensor([2,1,1,1,1,0,0,1,1,0,0,1,1,0,0,1])
-        # for i in range(1,17):
-        #     print(model(x,y_ans[:i]).argmax(-1)[:15])
-        # TODO: IMPLEMENT BEAM SEARCH FOR MOST PROBABLE SENTENCE
+        for i in range(1,LEN+1):
+            print(model(x,y_ans[:i]).argmax(-1))
+        y = beam_translate(model, x)
+        print('final', y)
         y_pred = model(x,y_ans)
         y_pred2 = model(x,y_ans[:8])
         print(y_pred.argmax(-1))
         print(y_pred2.argmax(-1))
         x = torch.tensor([1,0,0,0,1,0,0,0,1,0,0,0,1,0,0])
         y_ans = torch.tensor([2,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1])
-        for i in range(1,17):
-            print(model(x,y_ans[:i]).argmax(-1)[:15])
-        y = beam_translate(model, x)
+        for i in range(1,LEN+2):
+            print(model(x,y_ans[:i]).argmax(-1))
         print('Final: ',y)
     elif sys.argv[1] == "train":
         # I don't know why but https://blog.floydhub.com/the-transformer-in-pytorch/ say it's important
