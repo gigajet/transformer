@@ -2,6 +2,7 @@
 Custom task 1: reverse bit string of length 15
 """
 import sys
+import os
 import random
 import torch
 from torch import nn    
@@ -11,6 +12,89 @@ from layer.Transformer import Transformer
 from tqdm import tqdm
 from priority_queue import PriorityQueue
 import operator
+from typing import Optional
+
+from layer.PositionwiseFeedForward import PositionwiseFeedForward
+from layer.MultiheadAttention import MultiheadAttention
+from layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
+
+class CustomEncoderLayer (nn.Module):
+    def __init__(self, d_model: int, d_ff: int, d_out: int) -> None:
+        super().__init__()
+        self.ffn = PositionwiseFeedForward(d_model, d_ff, d_out)
+        self.norm = nn.LayerNorm(d_out)
+
+    def forward (self, x):
+        _x = self.ffn(x)
+        return self.norm(x+_x)
+
+class CustomDecoderLayer (nn.Module):
+    def __init__(self, d_model: int, d_ff: int, d_out: int, n_head: int) -> None:
+        super().__init__()
+        self.context_attention = MultiheadAttention(d_model, d_model, 
+            d_model, d_model, n_head, d_model)
+        self.norm = nn.LayerNorm(d_model)
+        self.ffn = PositionwiseFeedForward(d_model, d_ff, d_out)
+        self.norm2 = nn.LayerNorm(d_out)
+
+    def forward (self, x, context, context_mask):
+        x_ = self.context_attention(x, context, context, context_mask)
+        x = self.norm (x + x_)
+
+        x_ = self.ffn(x)
+        x = self.norm2 (x + x_)
+        return x
+
+# src_vocab is tgt_vocab
+class CustomTransformer (nn.Module):
+    def __init__(self, 
+        max_seq_len: int, num_encoder_layers: int, num_decoder_layers: int,
+        d_model: int, n_head: int, d_ff: int,
+        vocab_size: int, padding_idx: Optional[int]=None) -> None:
+        super().__init__()
+        self.embedding = PositionalEncodedEmbedding(max_seq_len, d_model, vocab_size, padding_idx)
+        self.encoders = nn.ModuleList([
+            CustomEncoderLayer(d_model, d_ff, d_model) for _ in range(num_encoder_layers)
+        ])
+        self.decoders = nn.ModuleList([
+            CustomDecoderLayer(d_model, d_ff, d_model, n_head) for _ in range(num_encoder_layers)
+        ])
+        self.linear = nn.Linear(d_model, vocab_size)
+        self.padding_idx = padding_idx
+
+    """
+    input_encoder: (*, m) of Long in [0,vocab_size-1]
+    input_decoder: (*, n) of Long in [0,vocab_size-1]
+    output: (*, n, vocab_size)
+    """
+
+    def forward (self, input_encoder, input_decoder):
+        dec_enc_mask = self.make_pad_mask(input_decoder, input_encoder, self.padding_idx)
+        input_encoder = self.embedding(input_encoder) # (*, m, d_model)
+        input_decoder = self.embedding(input_decoder) # (*, n, d_model)
+        context = input_encoder
+        for layer in self.encoders:
+            context = layer(context)
+        output = input_decoder
+        for layer in self.decoders:
+            output = layer(output, context, dec_enc_mask)
+        output = self.linear(output)
+        return output
+
+    """
+    row: (*, n)
+    col: (*, m)
+    pad_idx: int?
+    output: (*,1,n,m) of Boolean where a[i,j] True iff col[j]=pad_idx
+        or None if pad_idx is None
+    """
+    @staticmethod
+    def make_pad_mask (row, col, pad_idx: Optional[int]=None):
+        if pad_idx is None:
+            return None
+        n, m = row.size(-1), col.size(-1)
+        masked = col.eq(pad_idx).unsqueeze(-2).repeat_interleave(n,-2) # (*,n,m)
+        return masked.unsqueeze(-3)
 
 # Common alphabet: 0 and 1, and <sos>
 """
@@ -101,6 +185,7 @@ def evaluate (model, evalset, translate=greedy_translate)->float:
 
 def train (model, criterion, optimizer, trainset, num_epoch: int, 
     batch_size: int):
+    model = model.train()
     data_loader = DataLoader(trainset, batch_size, True)
     running_loss = 0.0
     iter = 0
@@ -123,6 +208,10 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
 
             running_loss += loss.item()
         print('iter loss',iter,running_loss)
+        if running_loss < 1e-6:
+            print('Convergent! Prematrue terminate epoch',epoch)
+            print('Saving checkpoint...')
+            torch.save(model.state_dict(), 'task1.pth')    
         running_loss = 0.0
         # print('Training acc: ',evaluate(model, ds))
         print('Saving checkpoint...')
@@ -130,7 +219,7 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
 
 if __name__ == "__main__":
     ds = generate_dataset(5000)
-    model = Transformer(16,3,3,256,8,512,3,3)
+    model = CustomTransformer(16,3,3,256,8,512,3)
     if len(sys.argv)<2:
         model.load_state_dict(torch.load('task1.pth'))
         model.eval()
@@ -151,13 +240,15 @@ if __name__ == "__main__":
         print('Final: ',y)
     elif sys.argv[1] == "train":
         # I don't know why but https://blog.floydhub.com/the-transformer-in-pytorch/ say it's important
-        for p in model.parameters():
-            if p.dim() > 1:
-                nn.init.xavier_uniform_(p)
-
-        criterion = nn.CrossEntropyLoss()
+        if os.path.exists('task1.pth'):
+            model.load_state_dict(torch.load('task1.pth'))
+        else:
+            for p in model.parameters():
+                if p.dim() > 1:
+                    nn.init.xavier_uniform_(p)
+        criterion = nn.CrossEntropyLoss(reduction='sum')
         optimizer = optim.Adam(model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
-        train(model, criterion, optimizer, ds, 40, 256)
+        train(model, criterion, optimizer, ds, 1000, 512)
     elif sys.argv[1] == "eval":
         model.load_state_dict(torch.load('task1.pth'))
         eval = generate_dataset(50000)
