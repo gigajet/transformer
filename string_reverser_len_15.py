@@ -227,7 +227,7 @@ if __name__ == "__main__":
         y_ans = torch.tensor([2,1,1,1,1,0,0,1,1,0,0,1,1,0,0,1])
         for i in range(1,LEN+1):
             print(model(x,y_ans[:i]).argmax(-1))
-        y = beam_translate(model, x)
+        y = greedy_translate(model, x)
         print('final', y)
         y_pred = model(x,y_ans)
         y_pred2 = model(x,y_ans[:8])
@@ -251,8 +251,8 @@ if __name__ == "__main__":
         train(model, criterion, optimizer, ds, 1000, 512)
     elif sys.argv[1] == "eval":
         model.load_state_dict(torch.load('task1.pth'))
-        eval = generate_dataset(50000)
-        acc = evaluate(model, eval)
+        evalset = generate_dataset(2000)
+        acc = evaluate(model, evalset)
         print('Evaluation accuracy:', acc*100,'%')
     else:
         pass
