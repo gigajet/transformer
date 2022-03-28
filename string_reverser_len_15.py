@@ -19,9 +19,9 @@ from layer.MultiheadAttention import MultiheadAttention
 from layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
 
 class CustomEncoderLayer (nn.Module):
-    def __init__(self, d_model: int, d_ff: int, d_out: int) -> None:
+    def __init__(self, d_model: int, d_ff: int, d_out: int, dropout: float) -> None:
         super().__init__()
-        self.ffn = PositionwiseFeedForward(d_model, d_ff, d_out)
+        self.ffn = PositionwiseFeedForward(d_model, d_ff, d_out, dropout)
         self.norm = nn.LayerNorm(d_out)
 
     def forward (self, x):
@@ -29,16 +29,17 @@ class CustomEncoderLayer (nn.Module):
         return self.norm(x+_x)
 
 class CustomDecoderLayer (nn.Module):
-    def __init__(self, d_model: int, d_ff: int, d_out: int, n_head: int) -> None:
+    def __init__(self, d_model: int, d_ff: int, d_out: int, n_head: int, dropout: float) -> None:
         super().__init__()
         self.context_attention = MultiheadAttention(d_model, d_model, 
             d_model, d_model, n_head, d_model)
         self.norm = nn.LayerNorm(d_model)
-        self.ffn = PositionwiseFeedForward(d_model, d_ff, d_out)
+        self.dropout = nn.Dropout(dropout)
+        self.ffn = PositionwiseFeedForward(d_model, d_ff, d_out, dropout)
         self.norm2 = nn.LayerNorm(d_out)
 
     def forward (self, x, context, context_mask):
-        x_ = self.context_attention(x, context, context, context_mask)
+        x_ = self.dropout(self.context_attention(x, context, context, context_mask))
         x = self.norm (x + x_)
 
         x_ = self.ffn(x)
@@ -50,16 +51,17 @@ class CustomTransformer (nn.Module):
     def __init__(self, 
         max_seq_len: int, num_encoder_layers: int, num_decoder_layers: int,
         d_model: int, n_head: int, d_ff: int,
-        vocab_size: int, padding_idx: Optional[int]=None) -> None:
+        vocab_size: int, padding_idx: Optional[int]=None,  dropout: float=0.1) -> None:
         super().__init__()
         self.embedding = PositionalEncodedEmbedding(max_seq_len, d_model, vocab_size, padding_idx)
         self.encoders = nn.ModuleList([
-            CustomEncoderLayer(d_model, d_ff, d_model) for _ in range(num_encoder_layers)
+            CustomEncoderLayer(d_model, d_ff, d_model, dropout) for _ in range(num_encoder_layers)
         ])
         self.decoders = nn.ModuleList([
-            CustomDecoderLayer(d_model, d_ff, d_model, n_head) for _ in range(num_encoder_layers)
+            CustomDecoderLayer(d_model, d_ff, d_model, n_head, dropout) for _ in range(num_decoder_layers)
         ])
         self.linear = nn.Linear(d_model, vocab_size)
+        self.dropout = nn.Dropout(dropout)
         self.padding_idx = padding_idx
 
     """
@@ -79,7 +81,7 @@ class CustomTransformer (nn.Module):
         for layer in self.decoders:
             output = layer(output, context, dec_enc_mask)
         output = self.linear(output)
-        return output
+        return self.dropout(output)
 
     """
     row: (*, n)
@@ -219,7 +221,7 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
 
 if __name__ == "__main__":
     ds = generate_dataset(5000)
-    model = CustomTransformer(16,3,3,256,8,512,3)
+    model = CustomTransformer(16,3,3,256,8,512,3,None,0.1)
     if len(sys.argv)<2:
         model.load_state_dict(torch.load('task1.pth'))
         model.eval()

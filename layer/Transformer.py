@@ -15,14 +15,15 @@ class Transformer (nn.Module):
     def __init__(self, 
         max_seq_len: int, num_encoder_layers: int, num_decoder_layers: int,
         d_model: int, n_head: int, d_ff: int,
-        src_vocab_size: int, tgt_vocab_size: int,
+        src_vocab_size: int, tgt_vocab_size: int, dropout: float=0.1,
         src_padding_idx: Optional[int]=None, tgt_padding_idx: Optional[int]=None) -> None:
         super().__init__()
         self.input_embedding = PositionalEncodedEmbedding(max_seq_len, d_model, src_vocab_size, src_padding_idx)
         self.output_embedding = PositionalEncodedEmbedding(max_seq_len, d_model, tgt_vocab_size, tgt_padding_idx)
-        self.encoder = TransformerEncoder(num_encoder_layers, d_model, d_ff, n_head)
-        self.decoder = TransformerDecoder(num_decoder_layers, d_model, d_ff, n_head)
+        self.encoder = TransformerEncoder(num_encoder_layers, d_model, d_ff, n_head, dropout)
+        self.decoder = TransformerDecoder(num_decoder_layers, d_model, d_ff, n_head, dropout)
         self.linear = nn.Linear(d_model, tgt_vocab_size)
+        self.dropout = nn.Dropout(dropout)
         self.src_padding_idx = src_padding_idx
         self.tgt_padding_idx = tgt_padding_idx
 
@@ -45,7 +46,7 @@ class Transformer (nn.Module):
         context = self.encoder(input_encoder)
         output = self.decoder(input_decoder, context, decoder_self_mask, dec_enc_mask)
         output = self.linear(output)
-        return output
+        return self.dropout(output)
 
     """
     row: (*, n)
@@ -66,23 +67,24 @@ if __name__=="__main__":
     # z = torch.tensor([1,0,1,1,0]).unsqueeze(-2)
     # print(z.repeat_interleave(4,-2))
 
-    transformer = Transformer(20,6,6,512,8,2048,6,7)
+    transformer = Transformer(20,6,6,512,8,2048,6,7,0.1)
     inp_enc = torch.tensor([1,2,3,4,5])
     inp_dec = torch.tensor([4,4,3,1])
     output = transformer(inp_enc, inp_dec)
     assert(output.shape == torch.Size([4,7]))
 
     # One with the mask
-    transformer = Transformer(20,6,6,512,8,2048,6,7,5,6)
+    transformer = Transformer(20,6,6,512,8,2048,6,7,0.0,5,6)
     inp_enc = torch.tensor([1,2,3,4,5,5])
     inp_dec = torch.tensor([4,6,3,1,6])
     output = transformer(inp_enc, inp_dec)
     assert(output.shape == torch.Size([5,7]))
 
-    transformer = Transformer(20,6,6,512,8,2048,6,7,5,6)
+    transformer = Transformer(20,6,6,512,8,2048,6,7,0.1,5,6)
     inp_enc = torch.tensor([[1,2,3,4,5,5],[1,4,0,5,5,5]])
     inp_dec = torch.tensor([[4,6,3,1,6],[4,0,1,6,6]])
     output = transformer(inp_enc, inp_dec)
     assert(output.shape == torch.Size([2,5,7]))
 
+    nn.Transformer
     print('Sanity check passed')

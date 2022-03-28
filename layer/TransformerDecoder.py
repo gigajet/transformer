@@ -9,10 +9,10 @@ except:
 class TransformerDecoder (nn.Module):
     # Assumption: d_in = d_out = d_model for all attention block
     def __init__(self, n_layer: int,
-        d_model: int, d_ff: int, n_head: int) -> None:
+        d_model: int, d_ff: int, n_head: int, dropout: float=0.1) -> None:
         super().__init__()
         self.layers = nn.ModuleList([
-            TransformerDecoderLayer(d_model, d_model, d_ff, d_model, n_head)
+            TransformerDecoderLayer(d_model, d_model, d_ff, d_model, n_head, dropout)
                 for _ in range(n_layer)
         ])
 
@@ -29,13 +29,13 @@ class TransformerDecoder (nn.Module):
         return x
 
 if __name__=="__main__":
-    dec = TransformerDecoder(1,512,2048,8)
+    dec = TransformerDecoder(1,512,2048,8,0.1)
     x = torch.randn(3, 128, 512)
     ctx = torch.randn(3, 128, 512)
     y = dec(x, ctx, None, None)
     assert(y.shape == x.shape)
 
-    dec6 = TransformerDecoder(6,512,2048,8)
+    dec6 = TransformerDecoder(6,512,2048,8,0.0)
     x = torch.randn(3, 256, 512)
     ctx = torch.randn(3, 256, 512)
     self_mask = torch.triu(torch.ones(256,256)).bool()
