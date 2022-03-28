@@ -190,7 +190,6 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
     model = model.train()
     data_loader = DataLoader(trainset, batch_size, True)
     running_loss = 0.0
-    iter = 0
     for epoch in range(num_epoch):
         print('Epoch',epoch+1)
         for x,y in tqdm(data_loader):
@@ -209,11 +208,12 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
             # Có loss tức là có gradient.
 
             running_loss += loss.item()
-        print('iter loss',iter,running_loss)
+        print('loss',running_loss)
         if running_loss < 1e-6:
             print('Convergent! Prematrue terminate epoch',epoch)
             print('Saving checkpoint...')
-            torch.save(model.state_dict(), 'task1.pth')    
+            torch.save(model.state_dict(), 'task1.pth')  
+            return  
         running_loss = 0.0
         # print('Training acc: ',evaluate(model, ds))
         print('Saving checkpoint...')
@@ -248,6 +248,7 @@ if __name__ == "__main__":
             for p in model.parameters():
                 if p.dim() > 1:
                     nn.init.xavier_uniform_(p)
+                    
         criterion = nn.CrossEntropyLoss(reduction='sum')
         optimizer = optim.Adam(model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
         train(model, criterion, optimizer, ds, 1000, 512)

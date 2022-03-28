@@ -5,6 +5,7 @@ Custom task 2: reverse string of a-z length 8
 import sys
 import random
 import torch
+import os
 from typing import Optional
 from torch import nn
 from torch import optim as optim
@@ -186,7 +187,6 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
     batch_size: int):
     data_loader = DataLoader(trainset, batch_size, True)
     running_loss = 0.0
-    iter = 0
     for epoch in range(num_epoch):
         print('Epoch',epoch+1)
         for x,y in tqdm(data_loader):
@@ -205,7 +205,12 @@ def train (model, criterion, optimizer, trainset, num_epoch: int,
             # Có loss tức là có gradient.
 
             running_loss += loss.item()
-        print('iter loss',iter,running_loss)
+        print('loss',running_loss)
+        if running_loss < 1e-6:
+            print('Convergent! Prematrue terminate epoch',epoch)
+            print('Saving checkpoint...')
+            torch.save(model.state_dict(), 'task1.pth')  
+            return
         running_loss = 0.0
         # print('Training acc: ',evaluate(model, ds))
         print('Saving checkpoint...')
@@ -232,13 +237,16 @@ if __name__ == "__main__":
         print('Final: ',y)
     elif sys.argv[1] == "train":
         # I don't know why but https://blog.floydhub.com/the-transformer-in-pytorch/ say it's important
-        for p in model.parameters():
-            if p.dim() > 1:
-                nn.init.xavier_uniform_(p)
+        if os.path.exists('task2.pth'):
+            model.load_state_dict(torch.load('task2.pth'))
+        else:
+            for p in model.parameters():
+                if p.dim() > 1:
+                    nn.init.xavier_uniform_(p)
 
         criterion = nn.CrossEntropyLoss(reduction='sum')
         optimizer = optim.Adam(model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
-        train(model, criterion, optimizer, ds, 80, 128)
+        train(model, criterion, optimizer, ds, 2000, 1024)
     elif sys.argv[1] == "eval":
         model.load_state_dict(torch.load('task2.pth'))
         eval = generate_dataset(50000)
