@@ -1,4 +1,7 @@
+import torch
 from torch import nn
+if torch.cuda.is_available():
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
 from typing import Optional
 from fairseq.models import FairseqEncoder, FairseqDecoder, FairseqEncoderDecoderModel, register_model, register_model_architecture
 from fairseq import utils
