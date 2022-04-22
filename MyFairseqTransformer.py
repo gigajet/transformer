@@ -36,7 +36,10 @@ class MyTransformerEncoder (FairseqEncoder):
         x = self.encoder(x)
         # Return the Encoder's output. This can be any object and will be
         # passed directly to the Decoder.
-        return x
+        return {
+            'context' : x,
+            'src_tokens' : src_tokens
+        }
 
     # Encoders are required to implement this method so that we can rearrange
     # the order of the batch elements during inference (e.g., beam search).
@@ -56,7 +59,12 @@ class MyTransformerEncoder (FairseqEncoder):
         # return {
         #     'final_hidden': final_hidden.index_select(0, new_order),
         # }
-        return encoder_out
+        context = encoder_out['context']
+        return {
+            'context' : context.index_select(0, new_order),
+            'src_tokens' : encoder_out['src_tokens'],
+            'src_pad_idx' : self.src_pad
+        }
 
 class MyTransformerDecoder (FairseqDecoder):
 
@@ -83,9 +91,11 @@ class MyTransformerDecoder (FairseqDecoder):
 
         output: (batch, tgt_len, vocab)
     """
-    def forward(self, prev_output_tokens, encoder_out, output_mask, context_mask):
+    def forward(self, prev_output_tokens, encoder_out):
         # Extract the final hidden state from the Encoder.
-        context = encoder_out
+        context = encoder_out['context']
+        output_mask = None
+        context_mask = self.make_pad_mask(prev_output_tokens, encoder_out['src_tokens'], encoder_out['src_pad_idx'])
 
         # Embed the target sequence, which has been shifted right by one
         # position and now starts with the end-of-sentence symbol.
@@ -95,6 +105,25 @@ class MyTransformerDecoder (FairseqDecoder):
         x = self.output_projection(x)
         x = self.dropout(x)
         return x, None
+
+    """
+     ____m______
+     |
+    n|
+     |
+    row: (batch, n)
+    col: (batch, m)
+    pad_idx: int?
+    output: (batch,n,m) of Boolean where a[b,i,j] True iff col[b,j]=source_pad_idx
+        or None if pad_idx is None
+    """
+    @staticmethod
+    def make_pad_mask (row, col, source_pad_idx: Optional[int]=None):
+        if source_pad_idx is None:
+            return None
+        n, m = row.size(-1), col.size(-1)
+        masked = col.eq(source_pad_idx).unsqueeze(-2).repeat_interleave(n,-2) # # (batch,n,m)
+        return masked.unsqueeze(-3)
 
 @register_model('mytransformer')
 class MyTransformer(FairseqEncoderDecoderModel):
@@ -157,58 +186,6 @@ class MyTransformer(FairseqEncoderDecoderModel):
         print(model)
 
         return model
-
-    """
-     ____m______
-     |
-    n|
-     |
-    row: (batch, n)
-    col: (batch, m)
-    pad_idx: int?
-    output: (batch,n,m) of Boolean where a[b,i,j] True iff col[b,j]=source_pad_idx
-        or None if pad_idx is None
-    """
-    @staticmethod
-    def make_pad_mask (row, col, source_pad_idx: Optional[int]=None):
-        if source_pad_idx is None:
-            return None
-        n, m = row.size(-1), col.size(-1)
-        masked = col.eq(source_pad_idx).unsqueeze(-2).repeat_interleave(n,-2) # # (batch,n,m)
-        return masked.unsqueeze(-3)
-
-    def forward(self, src_tokens, src_lengths, prev_output_tokens, **kwargs):
-        """
-        Run the forward pass for an encoder-decoder model.
-
-        First feed a batch of source tokens through the encoder. Then, feed the
-        encoder output and previous decoder outputs (i.e., teacher forcing) to
-        the decoder to produce the next outputs::
-
-            encoder_out = self.encoder(src_tokens, src_lengths)
-            return self.decoder(prev_output_tokens, encoder_out)
-
-        Args:
-            src_tokens (LongTensor): tokens in the source language of shape
-                `(batch, src_len)`
-            src_lengths (LongTensor): source sentence lengths of shape `(batch)`
-            prev_output_tokens (LongTensor): previous decoder outputs of shape
-                `(batch, tgt_len)`, for teacher forcing
-
-        Returns:
-            tuple:
-                - the decoder's output of shape `(batch, tgt_len, vocab)`
-                - a dictionary with any model-specific outputs
-
-        """
-
-        context_mask = self.make_pad_mask(prev_output_tokens, src_tokens, self.source_pad_idx)
-        encoder_out = self.encoder(src_tokens, src_lengths=src_lengths, **kwargs)
-        decoder_out, _ = self.decoder(
-            prev_output_tokens, encoder_out=encoder_out, 
-            output_mask=None, context_mask=context_mask, **kwargs
-        )
-        return decoder_out, None
 
 @register_model_architecture('mytransformer', 'mytransformer_default')
 def mytransformer_default(args):
