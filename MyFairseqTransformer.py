@@ -60,10 +60,9 @@ class MyTransformerEncoder (FairseqEncoder):
         # return {
         #     'final_hidden': final_hidden.index_select(0, new_order),
         # }
-        context = encoder_out['context']
         return {
-            'context' : context.index_select(0, new_order),
-            'src_tokens' : encoder_out['src_tokens'],
+            'context' : encoder_out['context'].index_select(0, new_order),
+            'src_tokens' : encoder_out['src_tokens'].index_select(0, new_order),
             'src_pad_idx' : self.src_pad_idx
         }
 
