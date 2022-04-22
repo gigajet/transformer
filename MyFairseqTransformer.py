@@ -2,9 +2,9 @@ from torch import nn
 from typing import Optional
 from fairseq.models import FairseqEncoder, FairseqDecoder, FairseqEncoderDecoderModel, register_model, register_model_architecture
 from fairseq import utils
-from layer.TransformerDecoder import TransformerDecoder
-from layer.TransformerEncoder import TransformerEncoder
-from layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
+from mymodel.models.layer.TransformerDecoder import TransformerDecoder
+from mymodel.models.layer.TransformerEncoder import TransformerEncoder
+from mymodel.models.layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
 
 class MyTransformerEncoder (FairseqEncoder):
     def __init__(self, args, dictionary, num_layer: int,
@@ -37,6 +37,7 @@ class MyTransformerEncoder (FairseqEncoder):
 
     # Encoders are required to implement this method so that we can rearrange
     # the order of the batch elements during inference (e.g., beam search).
+    # TODO: WTF IS THIS FUNCTION
     def reorder_encoder_out(self, encoder_out, new_order):
         """
         Reorder encoder output according to `new_order`.
@@ -89,7 +90,8 @@ class MyTransformerDecoder (FairseqDecoder):
 
         x = self.decoder(x, context, output_mask, context_mask) # (bsz, tgt_len, dim_model)
         x = self.output_projection(x)
-        return self.dropout(x)
+        x = self.dropout(x)
+        return x, None
 
 @register_model('mytransformer')
 class MyTransformer(FairseqEncoderDecoderModel):
@@ -170,7 +172,7 @@ class MyTransformer(FairseqEncoderDecoderModel):
             return None
         n, m = row.size(-1), col.size(-1)
         masked = col.eq(source_pad_idx).unsqueeze(-2).repeat_interleave(n,-2) # # (batch,n,m)
-        return masked
+        return masked.unsqueeze(-3)
 
     def forward(self, src_tokens, src_lengths, prev_output_tokens, **kwargs):
         """
@@ -193,15 +195,17 @@ class MyTransformer(FairseqEncoderDecoderModel):
         Returns:
             tuple:
                 - the decoder's output of shape `(batch, tgt_len, vocab)`
+                - a dictionary with any model-specific outputs
+
         """
 
         context_mask = self.make_pad_mask(prev_output_tokens, src_tokens, self.source_pad_idx)
         encoder_out = self.encoder(src_tokens, src_lengths=src_lengths, **kwargs)
-        decoder_out = self.decoder(
+        decoder_out, _ = self.decoder(
             prev_output_tokens, encoder_out=encoder_out, 
             output_mask=None, context_mask=context_mask, **kwargs
         )
-        return decoder_out
+        return decoder_out, None
 
 @register_model_architecture('mytransformer', 'mytransformer_default')
 def mytransformer_default(args):
