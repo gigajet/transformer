@@ -16,7 +16,7 @@ class MyTransformerEncoder (FairseqEncoder):
         self.args = args
         self.embedding = PositionalEncodedEmbedding(10000, dim_model, len(dictionary), dictionary.pad())
         self.encoder = TransformerEncoder(num_layer, dim_model, dim_feedforward, num_head, dropout)
-        self.src_pad = dictionary.pad()
+        self.src_pad_idx = dictionary.pad()
 
     """
     src_tokens: (batch, src_len)
@@ -38,7 +38,8 @@ class MyTransformerEncoder (FairseqEncoder):
         # passed directly to the Decoder.
         return {
             'context' : x,
-            'src_tokens' : src_tokens
+            'src_tokens' : src_tokens,
+            'src_pad_idx' : self.src_pad_idx
         }
 
     # Encoders are required to implement this method so that we can rearrange
@@ -63,7 +64,7 @@ class MyTransformerEncoder (FairseqEncoder):
         return {
             'context' : context.index_select(0, new_order),
             'src_tokens' : encoder_out['src_tokens'],
-            'src_pad_idx' : self.src_pad
+            'src_pad_idx' : self.src_pad_idx
         }
 
 class MyTransformerDecoder (FairseqDecoder):
@@ -153,10 +154,6 @@ class MyTransformer(FairseqEncoderDecoderModel):
             help='encoder and decoder dropout probability (default 0.1)',
         )
 
-    def __init__(self, encoder, decoder, source_pad_idx):
-        super().__init__(encoder, decoder)
-        self.source_pad_idx = source_pad_idx
-
     @classmethod
     def build_model(cls, args, task):
         # Fairseq initializes models by calling the ``build_model()``
@@ -180,7 +177,7 @@ class MyTransformer(FairseqEncoderDecoderModel):
             num_head=args.num_head,
             dropout=args.dropout
         )
-        model = MyTransformer(encoder, decoder, task.source_dictionary.pad())
+        model = MyTransformer(encoder, decoder)
 
         # Print the model architecture.
         print(model)
