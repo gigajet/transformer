@@ -13,6 +13,7 @@ class MyTransformerEncoder (FairseqEncoder):
     def __init__(self, args, dictionary, num_layer: int,
         dim_model: int, dim_feedforward: int, num_head: int, dropout: float):
         super().__init__(dictionary)
+        self.dictionary = dictionary
         self.args = args
         self.embedding = PositionalEncodedEmbedding(10000, dim_model, len(dictionary), dictionary.pad())
         self.encoder = TransformerEncoder(num_layer, dim_model, dim_feedforward, num_head, dropout)
@@ -24,6 +25,7 @@ class MyTransformerEncoder (FairseqEncoder):
     output: (batch, src_len, dim_model)
     """
     def forward(self, src_tokens, src_lengths):
+
         if self.args.left_pad_source:
             # Convert left-padding to right-padding.
             src_tokens = utils.convert_padding_direction(
