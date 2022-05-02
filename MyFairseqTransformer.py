@@ -22,7 +22,8 @@ class MyTransformerEncoder (FairseqEncoder):
     """
     src_tokens: (batch, src_len)
     src_lengths: (batch)
-    output: (batch, src_len, dim_model)
+    output: 
+        context: (batch, src_len, dim_model)
     """
     def forward(self, src_tokens, src_lengths):
 
@@ -38,9 +39,12 @@ class MyTransformerEncoder (FairseqEncoder):
         x = self.encoder(x)
         # Return the Encoder's output. This can be any object and will be
         # passed directly to the Decoder.
+        print('enc_forward',src_tokens, src_lengths)
+
         return {
             'context' : x,
             'src_tokens' : src_tokens,
+            'src_lengths' : src_lengths,
             'src_pad_idx' : self.src_pad_idx
         }
 
@@ -65,7 +69,8 @@ class MyTransformerEncoder (FairseqEncoder):
         return {
             'context' : encoder_out['context'].index_select(0, new_order),
             'src_tokens' : encoder_out['src_tokens'].index_select(0, new_order),
-            'src_pad_idx' : self.src_pad_idx
+            'src_pad_idx' : self.src_pad_idx,
+            'src_lengths' : encoder_out['src_lengths'].index_select(0, new_order)
         }
 
 class MyTransformerDecoder (FairseqDecoder):
