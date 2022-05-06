@@ -5,22 +5,24 @@ if torch.cuda.is_available():
 from typing import Optional
 from fairseq.models import FairseqEncoder, FairseqDecoder, FairseqEncoderDecoderModel, register_model, register_model_architecture
 from fairseq import utils
-from mymodel.models.layer.TransformerDecoder import TransformerDecoder
-from mymodel.models.layer.TransformerEncoder import TransformerEncoder
-from mymodel.models.layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
+from layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
 
-class MyTransformerEncoder (FairseqEncoder):
-    def __init__(self, args, dictionary, num_layer: int,
+class NNTransformerEncoder (FairseqEncoder):
+    def __init__(self, max_src_len: int, dictionary, num_layer: int,
         dim_model: int, dim_feedforward: int, num_head: int, dropout: float):
         super().__init__(dictionary)
         self.dictionary = dictionary
-        self.args = args
-        self.embedding = PositionalEncodedEmbedding(10000, dim_model, len(dictionary), dictionary.pad())
-        self.encoder = TransformerEncoder(num_layer, dim_model, dim_feedforward, num_head, dropout)
-        self.src_pad_idx = dictionary.pad()
 
-        self.nn_encoder_layer = nn.TransformerEncoderLayer(512,)
-        self.real_encoder = nn.TransformerEncoder()
+        self.embedding = PositionalEncodedEmbedding(max_src_len, dim_model, len(dictionary), dictionary.pad())
+        encoder_layer = nn.TransformerEncoderLayer(d_model=dim_model, 
+            nhead=num_head, 
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            batch_first=True)
+        self.nn_encoder = nn.TransformerEncoder(encoder_layer=encoder_layer,
+            num_layers=num_layer)
+
+        
 
     """
     src_tokens: (batch, src_len)
@@ -29,26 +31,23 @@ class MyTransformerEncoder (FairseqEncoder):
         context: (batch, src_len, dim_model)
     """
     def forward(self, src_tokens, src_lengths):
-
-        if self.args.left_pad_source:
-            # Convert left-padding to right-padding.
-            src_tokens = utils.convert_padding_direction(
-                src_tokens,
-                padding_idx=self.dictionary.pad(),
-                left_to_right=True
-            )
-
-        x = self.embedding(src_tokens)
-        x = self.encoder(x)
-        # Return the Encoder's output. This can be any object and will be
-        # passed directly to the Decoder.
-        # print('enc_forward',src_tokens, src_lengths)
-        # print('context',x.shape)
+        """
+        src (batch,src_len,E)
+        mask (src_len,src_len)
+        src_key_padding (batch,src_len)
+        where S is the source sequence length, T is the target sequence length, N is the
+        batch size, E is the feature number
+        """
+        src = self.embedding(src_tokens)
+        mask = None
+        src_key_padding = src_tokens.eq(self.src_pad_idx)
+        x = self.nn_encoder(src, mask, src_key_padding)
 
         return {
             'context' : x,
             'src_tokens' : src_tokens,
             'src_lengths' : src_lengths,
+            'src_key_padding' : src_key_padding,
             'src_pad_idx' : self.src_pad_idx
         }
 
@@ -73,19 +72,28 @@ class MyTransformerEncoder (FairseqEncoder):
         return {
             'context' : encoder_out['context'].index_select(0, new_order),
             'src_tokens' : encoder_out['src_tokens'].index_select(0, new_order),
+            'src_key_padding' : encoder_out['src_key_padding'].index_select(0, new_order),
             'src_pad_idx' : self.src_pad_idx,
             'src_lengths' : encoder_out['src_lengths'].index_select(0, new_order)
         }
 
-class MyTransformerDecoder (FairseqDecoder):
+class NNTransformerDecoder (FairseqDecoder):
 
     def __init__(
-        self, dictionary, num_layer: int,
+        self, max_tgt_len: int, dictionary, num_layer: int,
         dim_model: int, dim_feedforward: int, num_head: int, dropout: float
     ):
         super().__init__(dictionary)
-        self.embedding = PositionalEncodedEmbedding(10000, dim_model, len(dictionary), dictionary.pad())
-        self.decoder = TransformerDecoder(num_layer, dim_model, dim_feedforward, num_head, dropout)
+        self.embedding = PositionalEncodedEmbedding(max_tgt_len, dim_model, len(dictionary), dictionary.pad())
+        self.tgt_pad_idx = dictionary.pad()
+
+        decoder_layer = nn.TransformerDecoderLayer(d_model=dim_model,
+            nhead=num_head,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            batch_first=True)
+        self.nn_decoder = nn.TransformerDecoder(decoder_layer=decoder_layer, num_layers=num_layer)
+
         # Define the output projection.
         self.output_projection = nn.Linear(dim_model, len(dictionary))
         self.dropout = nn.Dropout(dropout)
@@ -96,48 +104,43 @@ class MyTransformerDecoder (FairseqDecoder):
     # ``dictionary.eos()``, followed by the target sequence.
     """
         prev_output_tokens: (batch, tgt_len)
-        encoder_out: (batch, src_len, dim_model)
-        output_mask: (batch, tgt_len, tgt_len)
-        context_mask: (batch, tgt_len, src_len)
+        encoder_out: object output by encoder.forward
 
-        output: (batch, tgt_len, vocab)
+        output: Tuple[(batch, tgt_len, vocab), dict]
     """
     def forward(self, prev_output_tokens, encoder_out):
-        # Extract the final hidden state from the Encoder.
-        context = encoder_out['context']
-        output_mask = None
-        context_mask = self.make_pad_mask(prev_output_tokens, encoder_out['src_tokens'], encoder_out['src_pad_idx'])
 
-        # Embed the target sequence, which has been shifted right by one
-        # position and now starts with the end-of-sentence symbol.
-        x = self.embedding(prev_output_tokens) # (bsz, tgt_len, dim_model)
+        """
+        tgt: (batch,tgt_len,E)
+        memory: last layer of encoder
+        tgt_mask: (tgt_len, tgt_len)
+        memory_mask: (tgt_len, src_len)
+        tgt_key_padding_mask: (batch, tgt_len)
+        memory_key_padding_mask: (batch, src_len)
+        """
+        tgt = self.embedding(prev_output_tokens)
+        memory = encoder_out['context']
+        tgt_len = prev_output_tokens.size(-1)
+        tgt_mask = self.get_square_mask(tgt_len) # only allow i<=j
+        memory_mask = None
+        tgt_key_padding_mask = prev_output_tokens.eq(self.tgt_pad_idx)
+        memory_key_padding_mask = encoder_out['src_key_padding']
 
-        x = self.decoder(x, context, output_mask, context_mask) # (bsz, tgt_len, dim_model)
+        self.nn_decoder(tgt, memory, 
+            tgt_mask=tgt_mask, 
+            memory_mask=memory_mask, 
+            tgt_key_padding_mask=tgt_key_padding_mask, 
+            memory_key_padding_mask=memory_key_padding_mask)
         x = self.output_projection(x)
-        x = self.dropout(x)
         return x, None
 
-    """
-     ____m______
-     |
-    n|
-     |
-    row: (batch, n)
-    col: (batch, m)
-    pad_idx: int?
-    output: (batch,n,m) of Boolean where a[b,i,j] True iff col[b,j]=source_pad_idx
-        or None if pad_idx is None
-    """
-    @staticmethod
-    def make_pad_mask (row, col, source_pad_idx: Optional[int]=None):
-        if source_pad_idx is None:
-            return None
-        n, m = row.size(-1), col.size(-1)
-        masked = col.eq(source_pad_idx).unsqueeze(-2).repeat_interleave(n,-2) # # (batch,n,m)
-        return masked.unsqueeze(-3)
+    def get_square_mask(self, sz):
+        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+        return mask
 
-@register_model('mytransformer')
-class MyTransformer(FairseqEncoderDecoderModel):
+@register_model('nntransformer')
+class NNTransformer(FairseqEncoderDecoderModel):
     @staticmethod
     def add_args(parser):
         # Models can override this method to add new command-line arguments.
@@ -163,6 +166,14 @@ class MyTransformer(FairseqEncoderDecoderModel):
             '--dropout', type=float, default=0.1,
             help='encoder and decoder dropout probability (default 0.1)',
         )
+        parser.add_argument(
+            '--max-src-len', type=int,
+            help='Maximum number of tokens in source sequence'
+        )
+        parser.add_argument(
+            '--max-tgt-len', type=int,
+            help='Maximum number of tokens in target sequence'
+        )
 
     @classmethod
     def build_model(cls, args, task):
@@ -172,14 +183,14 @@ class MyTransformer(FairseqEncoderDecoderModel):
         # In this case we'll just return a SimpleLSTMModel instance.
 
         # Initialize our Encoder and Decoder.
-        encoder = MyTransformerEncoder(args,
+        encoder = NNTransformerEncoder(args.max_src_len,
             dictionary=task.source_dictionary,
             num_layer=args.num_layer,
             dim_model=args.dim_model,
             dim_feedforward= args.dim_feedforward,
             num_head=args.num_head,
             dropout=args.dropout)
-        decoder = MyTransformerDecoder(
+        decoder = NNTransformerDecoder(args.max_tgt_len,
             dictionary=task.target_dictionary,
             num_layer=args.num_layer,
             dim_model=args.dim_model,
@@ -187,14 +198,10 @@ class MyTransformer(FairseqEncoderDecoderModel):
             num_head=args.num_head,
             dropout=args.dropout
         )
-        model = MyTransformer(encoder, decoder)
-
-        # Print the model architecture.
-        print(model)
-
+        model = NNTransformer(encoder, decoder)
         return model
 
-@register_model_architecture('mytransformer', 'mytransformer_default')
+@register_model_architecture('nntransformer', 'nntransformer_default')
 def mytransformer_default(args):
     # We use ``getattr()`` to prioritize arguments that are explicitly given
     # on the command-line, so that the defaults defined below are only used
@@ -203,3 +210,5 @@ def mytransformer_default(args):
     args.dim_model = getattr(args, 'dim_model', 512)
     args.dim_feedforward = getattr(args, 'dim_feedforward', 2048)
     args.num_head = getattr(args, 'num_head', 8)
+    args.max_src_len = getattr(args, 'max_src_len', 16378)
+    args.max_tgt_len = getattr(args, 'max_tgt_len', 16378)
