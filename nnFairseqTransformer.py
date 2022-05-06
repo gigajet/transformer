@@ -127,7 +127,7 @@ class NNTransformerDecoder (FairseqDecoder):
         tgt_key_padding_mask = prev_output_tokens.eq(self.tgt_pad_idx)
         memory_key_padding_mask = encoder_out['src_key_padding']
 
-        self.nn_decoder(tgt, memory, 
+        x = self.nn_decoder(tgt, memory, 
             tgt_mask=tgt_mask, 
             memory_mask=memory_mask, 
             tgt_key_padding_mask=tgt_key_padding_mask, 
