@@ -39,8 +39,8 @@ class MyTransformerEncoder (FairseqEncoder):
         x = self.encoder(x)
         # Return the Encoder's output. This can be any object and will be
         # passed directly to the Decoder.
-        print('enc_forward',src_tokens, src_lengths)
-        print('context',x.shape)
+        # print('enc_forward',src_tokens, src_lengths)
+        # print('context',x.shape)
 
         return {
             'context' : x,
