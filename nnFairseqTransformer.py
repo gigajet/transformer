@@ -12,6 +12,7 @@ class NNTransformerEncoder (FairseqEncoder):
         dim_model: int, dim_feedforward: int, num_head: int, dropout: float):
         super().__init__(dictionary)
         self.dictionary = dictionary
+        self.src_pad_idx = dictionary.pad()
 
         self.embedding = PositionalEncodedEmbedding(max_src_len, dim_model, len(dictionary), dictionary.pad())
         encoder_layer = nn.TransformerEncoderLayer(d_model=dim_model, 
