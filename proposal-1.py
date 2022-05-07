@@ -12,11 +12,11 @@ from mymodel.models.layer.PositionalEncodedEmbedding import PositionalEncodedEmb
 from mymodel.models.layer.FuzzyRule import FuzzyRuleLayer
 from mymodel.models.nnFairseqTransformer import NNTransformerDecoder
 
-class Proposal3EncoderLayer(nn.TransformerEncoderLayer):
+class Proposal1EncoderLayer(nn.TransformerEncoderLayer):
     r""""
+    PROPOSAL 1
     This is the nn.TransformerEncoderLayer, but with
-    the FuzzyLayer inserted after the first Add&Norm,
-    which is before the MultiHeadAttention.
+    the FuzzyLayer inserted after the FeedForward, with another AddNorm.
 
     Args:
         d_model: the number of expected features in the input (required).
@@ -47,7 +47,7 @@ class Proposal3EncoderLayer(nn.TransformerEncoderLayer):
                  layer_norm_eps=1e-5, batch_first=False, norm_first=False,
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
-        super(Proposal3EncoderLayer, self).__init__(
+        super(Proposal1EncoderLayer, self).__init__(
             d_model=d_model, 
             nhead=nhead, 
             dim_feedforward=dim_feedforward, 
@@ -71,8 +71,10 @@ class Proposal3EncoderLayer(nn.TransformerEncoderLayer):
         self.norm_first = norm_first
         self.norm1 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
         self.norm2 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
+        self.norm3 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
+        self.dropout3 = nn.Dropout(dropout)
 
         # Legacy string support for activation function.
         if isinstance(activation, str):
@@ -96,16 +98,20 @@ class Proposal3EncoderLayer(nn.TransformerEncoderLayer):
 
         x = src
         if self.norm_first:
-            y = self.fuzzy_rule(self.fuzzy_membership(x))
-            x = x + super()._sa_block(self.norm1(y), src_mask, src_key_padding_mask)
+            x = x + super()._sa_block(self.norm1(x), src_mask, src_key_padding_mask)
             x = x + super()._ff_block(self.norm2(x))
+            x = x + self.fuzzy_block(self.norm3(x))
         else:
-            y = self.fuzzy_rule(self.fuzzy_membership(x))
-            x = self.norm1(x + super()._sa_block(y, src_mask, src_key_padding_mask))
+            x = self.norm1(x + super()._sa_block(x, src_mask, src_key_padding_mask))
             x = self.norm2(x + super()._ff_block(x))
+            x = self.norm3(x + self.fuzzy_block(x))
         return x
+    
+    def fuzzy_block (self, x: torch.Tensor)->torch.Tensor:
+        x = self.fuzzy_rule(self.fuzzy_membership(x))
+        return self.dropout3(x)
 
-class Proposal3Encoder (FairseqEncoder):
+class Proposal1Encoder (FairseqEncoder):
     def __init__(self, max_src_len: int, dictionary, num_layer: int,
         dim_fuzzy: int,
         dim_model: int, dim_feedforward: int, num_head: int, dropout: float):
@@ -114,7 +120,7 @@ class Proposal3Encoder (FairseqEncoder):
         self.src_pad_idx = dictionary.pad()
 
         self.embedding = PositionalEncodedEmbedding(max_src_len, dim_model, len(dictionary), dictionary.pad())
-        encoder_layer = Proposal3EncoderLayer(d_model=dim_model,
+        encoder_layer = Proposal1EncoderLayer(d_model=dim_model,
             nhead=num_head,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
@@ -175,8 +181,8 @@ class Proposal3Encoder (FairseqEncoder):
             'src_lengths' : encoder_out['src_lengths'].index_select(0, new_order)
         }
 
-@register_model('proposal3')
-class Proposal3Transformer(FairseqEncoderDecoderModel):
+@register_model('proposal1')
+class Proposal1Transformer(FairseqEncoderDecoderModel):
     @staticmethod
     def add_args(parser):
         # Models can override this method to add new command-line arguments.
@@ -223,7 +229,7 @@ class Proposal3Transformer(FairseqEncoderDecoderModel):
         # In this case we'll just return a SimpleLSTMModel instance.
 
         # Initialize our Encoder and Decoder.
-        encoder = Proposal3Encoder(args.max_src_len,
+        encoder = Proposal1Encoder(args.max_src_len,
             dictionary=task.source_dictionary,
             num_layer=args.num_layer,
             dim_model=args.dim_model,
@@ -238,16 +244,16 @@ class Proposal3Transformer(FairseqEncoderDecoderModel):
             num_head=args.num_head,
             dropout=args.dropout
         )
-        model = Proposal3Transformer(encoder, decoder)
+        model = Proposal1Transformer(encoder, decoder)
         return model
 
-@register_model_architecture('proposal3', 'proposal3_default')
+@register_model_architecture('proposal1', 'proposal1_default')
 def mytransformer_default(args):
     # We use ``getattr()`` to prioritize arguments that are explicitly given
     # on the command-line, so that the defaults defined below are only used
     # when no other value has been specified.
     args.num_layer = getattr(args, 'num_layer', 6)
-    args.dim_fuzzy = getattr(args, 'dim_fuzzy', 128) # UNUSED IN PROPOSAL 3
+    args.dim_fuzzy = getattr(args, 'dim_fuzzy', 128)
     args.dim_model = getattr(args, 'dim_model', 128)
     args.dim_feedforward = getattr(args, 'dim_feedforward', 2048)
     args.num_head = getattr(args, 'num_head', 8)
