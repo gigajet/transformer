@@ -25,7 +25,7 @@ class Proposal7Encoder (FairseqEncoder):
         self.dictionary = dictionary
         self.src_pad_idx = dictionary.pad()
 
-        self.embedding = PositionalEncodedEmbedding(len(dictionary), dim_model, dictionary.pad())
+        self.embedding = PositionalEncodedEmbedding(max_src_len, dim_model, len(dictionary), dictionary.pad())
         self.membership_layer = MembershipFunctionLayer(dim_model, dim_model)
         self.fuzzyrule_layer = FuzzyRuleLayer()
 
