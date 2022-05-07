@@ -29,4 +29,4 @@ class PositionalEncoding (nn.Module):
     """
     def forward (self, x):
         n = x.size(-1)
-        return x + self.positional_encoding[:n, :]
+        return self.positional_encoding[:n, :]
