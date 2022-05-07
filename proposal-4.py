@@ -97,12 +97,12 @@ class Proposal4EncoderLayer(nn.TransformerEncoderLayer):
         x = src
         if self.norm_first:
             x = x + super()._sa_block(self.norm1(x), src_mask, src_key_padding_mask)
-            x = self.fuzzy_rule(self.fuzzy_membership(x))
-            x = x + super()._ff_block(self.norm2(x))
+            y = self.fuzzy_rule(self.fuzzy_membership(x))
+            x = x + super()._ff_block(self.norm2(y))
         else:
             x = self.norm1(x + super()._sa_block(x, src_mask, src_key_padding_mask))
-            x = self.fuzzy_rule(self.fuzzy_membership(x))
-            x = self.norm2(x + super()._ff_block(x))
+            y = self.fuzzy_rule(self.fuzzy_membership(x))
+            x = self.norm2(x + super()._ff_block(y))
         return x
 
 class Proposal4Encoder (FairseqEncoder):
