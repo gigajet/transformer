@@ -54,7 +54,7 @@ class Proposal8Encoder (FairseqEncoder):
         """
         src = self.embedding(src_tokens)
         src = self.fuzzyrule_layer(self.membership_layer(src))
-        src = src + self.positional_enc(src)
+        src = src + self.positional_enc(src_tokens)
 
         mask = None
         src_key_padding = src_tokens.eq(self.src_pad_idx)
