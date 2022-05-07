@@ -30,7 +30,7 @@ class Proposal8Encoder (FairseqEncoder):
         self.membership_layer = MembershipFunctionLayer(dim_model, dim_model)
         self.fuzzyrule_layer = FuzzyRuleLayer()
 
-        encoder_layer = nn.TransformerEncoderLayer(d_model=dim_model=dim_model,
+        encoder_layer = nn.TransformerEncoderLayer(d_model=dim_model,
             nhead=num_head,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
