@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+
+from layer.FuzzyRule import MembershipFunctionLayer
 if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 from typing import Optional
@@ -59,7 +61,8 @@ class Proposal4EncoderLayer(nn.TransformerEncoderLayer):
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
                                             **factory_kwargs)
 
-        self.fuzzy = FuzzyRuleLayer(d_model, dim_fuzzy)
+        self.fuzzy_membership = MembershipFunctionLayer(d_model, dim_fuzzy)
+        self.fuzzy_rule = FuzzyRuleLayer()
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(dim_fuzzy, dim_feedforward, **factory_kwargs)
         self.dropout = nn.Dropout(dropout)
@@ -94,11 +97,11 @@ class Proposal4EncoderLayer(nn.TransformerEncoderLayer):
         x = src
         if self.norm_first:
             x = x + super()._sa_block(self.norm1(x), src_mask, src_key_padding_mask)
-            x = self.fuzzy(x)
+            x = self.fuzzy_rule(self.fuzzy_membership(x))
             x = x + super()._ff_block(self.norm2(x))
         else:
             x = self.norm1(x + super()._sa_block(x, src_mask, src_key_padding_mask))
-            x = self.fuzzy(x)
+            x = self.fuzzy_rule(self.fuzzy_membership(x))
             x = self.norm2(x + super()._ff_block(x))
         return x
 
