@@ -19,8 +19,15 @@ class FuzzyLayer(nn.Module):
         # https://github.com/pytorch/pytorch/issues/57109
         nn.init.uniform_(self.fuzzy_degree)
 
+    """
+    input: (*, i)
+    output: (*, o)
+    """
     def forward(self, input, **kwargs):
-        x = torch.repeat_interleave(torch.unsqueeze(input,-1), self.output_dim, dim=-1)
+        y = torch.unsqueeze(input,-1)
+        # y (*, i, 1)
+        x = torch.repeat_interleave(y, self.output_dim, dim=-1)
+        # x (*, i, o) -> (*, o)
         fuzzy_out = torch.exp(
                         -torch.sum(
                             torch.square((x-self.fuzzy_degree)/(self.sigma**2))            
@@ -40,12 +47,12 @@ class FuzzyRuleLayer(nn.Module):
         ])
 
     """
-    input: (*, input_dim)
-    output: (*, output_dim)
+    input: (*, i)
+    output: (*, o)
     """
     def forward(self, input):
-        batch_size, input_dim = input.size()
-        an=torch.ones(batch_size, self.output_dim)
+        an=torch.ones((*input.size()[:-1], self.output_dim))
+        print(an.size())
         for layer in self.layers:
             an=an*layer(input)
         return an
@@ -54,4 +61,6 @@ if __name__=="__main__":
     z=FuzzyRuleLayer(5,35)
     y=torch.ones(3,5)
     assert (z(y).shape == torch.Size([3,35]))
+    y=torch.ones(3,6,5)
+    assert (z(y).shape == torch.Size([3,6,35]))
     print('Sanity check passed')

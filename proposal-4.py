@@ -1,14 +1,14 @@
 import torch
 from torch import nn
-from torch import functional as F
+from torch.nn import functional as F
 if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 from typing import Optional
 from fairseq.models import FairseqEncoder, FairseqDecoder, FairseqEncoderDecoderModel, register_model, register_model_architecture
 from fairseq import utils
-from layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
-from layer.FuzzyRule import FuzzyRuleLayer
-from nnFairseqTransformer import NNTransformerDecoder
+from mymodel.models.layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
+from mymodel.models.layer.FuzzyRule import FuzzyRuleLayer
+from mymodel.models.nnFairseqTransformer import NNTransformerDecoder
 
 class Proposal4EncoderLayer(nn.TransformerEncoderLayer):
     r""""
@@ -45,7 +45,7 @@ class Proposal4EncoderLayer(nn.TransformerEncoderLayer):
                  layer_norm_eps=1e-5, batch_first=False, norm_first=False,
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
-        super(nn.TransformerEncoderLayer, self).__init__(
+        super(Proposal4EncoderLayer, self).__init__(
             d_model=d_model, 
             nhead=nhead, 
             dim_feedforward=dim_feedforward, 
@@ -77,7 +77,7 @@ class Proposal4EncoderLayer(nn.TransformerEncoderLayer):
         else:
             self.activation = activation
 
-    def forward(self, src: torch.Tensor, src_mask: Optional[Tensor] = None, src_key_padding_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None, src_key_padding_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         r"""Pass the input through the encoder layer.
 
         Args:
@@ -221,7 +221,7 @@ class Proposal4Transformer(FairseqEncoderDecoderModel):
         # In this case we'll just return a SimpleLSTMModel instance.
 
         # Initialize our Encoder and Decoder.
-        encoder = Proposal4EncoderLayer(args.max_src_len,
+        encoder = Proposal4Encoder(args.max_src_len,
             dictionary=task.source_dictionary,
             dim_fuzzy=args.dim_fuzzy,
             num_layer=args.num_layer,
