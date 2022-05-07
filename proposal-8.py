@@ -10,118 +10,27 @@ from fairseq.models import FairseqEncoder, FairseqDecoder, FairseqEncoderDecoder
 from fairseq import utils
 from mymodel.models.layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
 from mymodel.models.layer.FuzzyRule import FuzzyRuleLayer
-from mymodel.models.nnFairseqTransformer import NNTransformerDecoder
+from mymodel.models.nnFairseqTransformer import NNTransformerDecoder, NNTransformerEncoder
+from layer.PositionalEncoding import PositionalEncoding
 
-class Proposal1EncoderLayer(nn.TransformerEncoderLayer):
-    r""""
-    PROPOSAL 1
-    This is the nn.TransformerEncoderLayer, but with
-    the FuzzyLayer inserted after the FeedForward, with another AddNorm.
-    NOTE: FUZZYLAYER ADDED TO EACH ENCODER LAYER
+"""
+PROPOSAL 8
+FuzzyLayer is inserted after Embedding, before PositionalEncoding
+"""
 
-    Args:
-        d_model: the number of expected features in the input (required).
-        nhead: the number of heads in the multiheadattention models (required).
-        dim_feedforward: the dimension of the feedforward network model (default=2048).
-        dropout: the dropout value (default=0.1).
-        activation: the activation function of the intermediate layer, can be a string
-            ("relu" or "gelu") or a unary callable. Default: relu
-        layer_norm_eps: the eps value in layer normalization components (default=1e-5).
-        batch_first: If ``True``, then the input and output tensors are provided
-            as (batch, seq, feature). Default: ``False``.
-        norm_first: if ``True``, layer norm is done prior to attention and feedforward
-            operations, respectivaly. Otherwise it's done after. Default: ``False`` (after).
-
-    Examples::
-        >>> encoder_layer = nn.TransformerEncoderLayer(d_model=512, nhead=8)
-        >>> src = torch.rand(10, 32, 512)
-        >>> out = encoder_layer(src)
-
-    Alternatively, when ``batch_first`` is ``True``:
-        >>> encoder_layer = nn.TransformerEncoderLayer(d_model=512, nhead=8, batch_first=True)
-        >>> src = torch.rand(32, 10, 512)
-        >>> out = encoder_layer(src)
-    """
-    __constants__ = ['batch_first', 'norm_first']
-
-    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation=F.relu,
-                 layer_norm_eps=1e-5, batch_first=False, norm_first=False,
-                 device=None, dtype=None) -> None:
-        factory_kwargs = {'device': device, 'dtype': dtype}
-        super(Proposal1EncoderLayer, self).__init__(
-            d_model=d_model, 
-            nhead=nhead, 
-            dim_feedforward=dim_feedforward, 
-            dropout=dropout, 
-            activation=activation,
-            layer_norm_eps=layer_norm_eps, 
-            batch_first=batch_first, 
-            norm_first=norm_first,
-            device=device, 
-            dtype=dtype)
-        self.fuzzy_membership = MembershipFunctionLayer(d_model, d_model)
-        self.fuzzy_rule = FuzzyRuleLayer()
-
-        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
-                                            **factory_kwargs)
-        # Implementation of Feedforward model
-        self.linear1 = nn.Linear(d_model, dim_feedforward, **factory_kwargs)
-        self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_feedforward, d_model, **factory_kwargs)
-
-        self.norm_first = norm_first
-        self.norm1 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
-        self.norm2 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
-        self.norm3 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
-        self.dropout1 = nn.Dropout(dropout)
-        self.dropout2 = nn.Dropout(dropout)
-        self.dropout3 = nn.Dropout(dropout)
-
-        # Legacy string support for activation function.
-        if isinstance(activation, str):
-            self.activation = F._get_activation_fn(activation)
-        else:
-            self.activation = activation
-
-    def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None, src_key_padding_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        r"""Pass the input through the encoder layer.
-
-        Args:
-            src: the sequence to the encoder layer (required).
-            src_mask: the mask for the src sequence (optional).
-            src_key_padding_mask: the mask for the src keys per batch (optional).
-
-        Shape:
-            see the docs in Transformer class.
-        """
-
-        # see Fig. 1 of https://arxiv.org/pdf/2002.04745v1.pdf
-
-        x = src
-        if self.norm_first:
-            x = x + super()._sa_block(self.norm1(x), src_mask, src_key_padding_mask)
-            x = x + super()._ff_block(self.norm2(x))
-            x = x + self.fuzzy_block(self.norm3(x))
-        else:
-            x = self.norm1(x + super()._sa_block(x, src_mask, src_key_padding_mask))
-            x = self.norm2(x + super()._ff_block(x))
-            x = self.norm3(x + self.fuzzy_block(x))
-        return x
-    
-    def fuzzy_block (self, x: torch.Tensor)->torch.Tensor:
-        x = self.fuzzy_rule(self.fuzzy_membership(x))
-        return self.dropout3(x)
-
-class Proposal1Encoder (FairseqEncoder):
+class Proposal8Encoder (FairseqEncoder):
     def __init__(self, max_src_len: int, dictionary, num_layer: int,
-        dim_fuzzy: int,
         dim_model: int, dim_feedforward: int, num_head: int, dropout: float):
         super().__init__(dictionary)
         self.dictionary = dictionary
         self.src_pad_idx = dictionary.pad()
 
-        self.embedding = PositionalEncodedEmbedding(max_src_len, dim_model, len(dictionary), dictionary.pad())
-        encoder_layer = Proposal1EncoderLayer(d_model=dim_model,
+        self.embedding = nn.Embedding(len(dictionary), dim_model, dictionary.pad())
+        self.positional_enc = PositionalEncoding(max_src_len, dim_model)
+        self.membership_layer = MembershipFunctionLayer(dim_model, dim_model)
+        self.fuzzyrule_layer = FuzzyRuleLayer()
+
+        encoder_layer = NNTransformerEncoder(d_model=dim_model,
             nhead=num_head,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
@@ -144,6 +53,9 @@ class Proposal1Encoder (FairseqEncoder):
         batch size, E is the feature number
         """
         src = self.embedding(src_tokens)
+        src = self.fuzzyrule_layer(self.membership_layer(src))
+        src = src + self.positional_enc(src)
+
         mask = None
         src_key_padding = src_tokens.eq(self.src_pad_idx)
         x = self.nn_encoder(src, mask, src_key_padding)
@@ -182,8 +94,8 @@ class Proposal1Encoder (FairseqEncoder):
             'src_lengths' : encoder_out['src_lengths'].index_select(0, new_order)
         }
 
-@register_model('proposal1')
-class Proposal1Transformer(FairseqEncoderDecoderModel):
+@register_model('proposal8')
+class Proposal8Transformer(FairseqEncoderDecoderModel):
     @staticmethod
     def add_args(parser):
         # Models can override this method to add new command-line arguments.
@@ -230,7 +142,7 @@ class Proposal1Transformer(FairseqEncoderDecoderModel):
         # In this case we'll just return a SimpleLSTMModel instance.
 
         # Initialize our Encoder and Decoder.
-        encoder = Proposal1Encoder(args.max_src_len,
+        encoder = Proposal8Encoder(args.max_src_len,
             dictionary=task.source_dictionary,
             num_layer=args.num_layer,
             dim_model=args.dim_model,
@@ -245,16 +157,16 @@ class Proposal1Transformer(FairseqEncoderDecoderModel):
             num_head=args.num_head,
             dropout=args.dropout
         )
-        model = Proposal1Transformer(encoder, decoder)
+        model = Proposal8Transformer(encoder, decoder)
         return model
 
-@register_model_architecture('proposal1', 'proposal1_default')
+@register_model_architecture('proposal8', 'proposal8_default')
 def mytransformer_default(args):
     # We use ``getattr()`` to prioritize arguments that are explicitly given
     # on the command-line, so that the defaults defined below are only used
     # when no other value has been specified.
     args.num_layer = getattr(args, 'num_layer', 6)
-    args.dim_fuzzy = getattr(args, 'dim_fuzzy', 128)
+    args.dim_fuzzy = getattr(args, 'dim_fuzzy', 64) # UNUSED
     args.dim_model = getattr(args, 'dim_model', 128)
     args.dim_feedforward = getattr(args, 'dim_feedforward', 2048)
     args.num_head = getattr(args, 'num_head', 8)
