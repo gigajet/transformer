@@ -249,8 +249,8 @@ def mytransformer_default(args):
     # on the command-line, so that the defaults defined below are only used
     # when no other value has been specified.
     args.num_layer = getattr(args, 'num_layer', 6)
-    args.dim_fuzzy = getattr(args, 'dim_fuzzy', 128)
-    args.dim_model = getattr(args, 'dim_model', 128)
+    args.dim_fuzzy = getattr(args, 'dim_fuzzy', 256)
+    args.dim_model = getattr(args, 'dim_model', 256)
     args.dim_feedforward = getattr(args, 'dim_feedforward', 2048)
     args.num_head = getattr(args, 'num_head', 8)
     args.max_src_len = getattr(args, 'max_src_len', 4096)
