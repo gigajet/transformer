@@ -107,7 +107,6 @@ class Proposal3EncoderLayer(nn.TransformerEncoderLayer):
 
 class Proposal3Encoder (FairseqEncoder):
     def __init__(self, max_src_len: int, dictionary, num_layer: int,
-        dim_fuzzy: int,
         dim_model: int, dim_feedforward: int, num_head: int, dropout: float):
         super().__init__(dictionary)
         self.dictionary = dictionary
