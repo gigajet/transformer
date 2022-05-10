@@ -235,7 +235,8 @@ class Proposal10Transformer(FairseqEncoderDecoderModel):
             dim_model=args.dim_model + args.dim_fuzzy,
             dim_feedforward= args.dim_feedforward,
             num_head=args.num_head,
-            dropout=args.dropout
+            dropout=args.dropout,
+            dim_fuzzy=args.dim_fuzzy
         )
         model = Proposal10Transformer(encoder, decoder)
         return model
