@@ -30,3 +30,9 @@ class PositionalEncoding (nn.Module):
     def forward (self, x):
         n = x.size(-1)
         return self.positional_encoding[:n, :]
+
+if __name__ == '__main__':
+    test = PositionalEncoding(10, 512)
+    x = torch.empty((3,5))
+    z = test(x)
+    print(z.shape, z)

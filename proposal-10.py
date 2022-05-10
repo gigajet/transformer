@@ -1,29 +1,46 @@
+from distutils.log import error
+from cv2 import detail_SeamFinder
 import torch
 from torch import nn
+from torch.nn import functional as F
+
+from layer.FuzzyRule import MembershipFunctionLayer
 if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 from typing import Optional
 from fairseq.models import FairseqEncoder, FairseqDecoder, FairseqEncoderDecoderModel, register_model, register_model_architecture
 from fairseq import utils
-from layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
+from mymodel.models.layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
+from mymodel.models.layer.FuzzyRule import FuzzyRuleLayer
+from mymodel.models.nnFairseqTransformer import NNTransformerDecoder
+"""
+PROPOSAL 10:
+Add two fuzzy layer as two feature extractor, parallel to the Transformer.
+Fuzzy Layers are inserted after input and output embedding
+"""
 
-class NNTransformerEncoder (FairseqEncoder):
+class Proposal10Encoder (FairseqEncoder):
     def __init__(self, max_src_len: int, dictionary, num_layer: int,
+        dim_fuzzy: int,
         dim_model: int, dim_feedforward: int, num_head: int, dropout: float):
         super().__init__(dictionary)
         self.dictionary = dictionary
         self.src_pad_idx = dictionary.pad()
 
         self.embedding = PositionalEncodedEmbedding(max_src_len, dim_model, len(dictionary), dictionary.pad())
-        encoder_layer = nn.TransformerEncoderLayer(d_model=dim_model, 
-            nhead=num_head, 
+        encoder_layer = nn.TransformerEncoderLayer(d_model=dim_model,
+            nhead=num_head,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
             batch_first=True)
         self.nn_encoder = nn.TransformerEncoder(encoder_layer=encoder_layer,
             num_layers=num_layer)
+        self.fuzzy_membership = MembershipFunctionLayer(dim_model, dim_fuzzy)
+        self.fuzzy_rule = FuzzyRuleLayer()
 
-        
+    def _fuzzy_block (self, x):
+        x = self.fuzzy_rule(self.fuzzy_membership(x))
+        return x
 
     """
     src_tokens: (batch, src_len)
@@ -42,10 +59,13 @@ class NNTransformerEncoder (FairseqEncoder):
         src = self.embedding(src_tokens)
         mask = None
         src_key_padding = src_tokens.eq(self.src_pad_idx)
+
+        x_fuzzy = self._fuzzy_block(src)
         x = self.nn_encoder(src, mask, src_key_padding)
 
         return {
             'context' : x,
+            'fuzzy_feature' : x_fuzzy,
             'src_tokens' : src_tokens,
             'src_lengths' : src_lengths,
             'src_key_padding' : src_key_padding,
@@ -72,15 +92,17 @@ class NNTransformerEncoder (FairseqEncoder):
         # }
         return {
             'context' : encoder_out['context'].index_select(0, new_order),
+            'fuzzy_feature' : encoder_out['fuzzy_feature'].index_select(0, new_order),
             'src_tokens' : encoder_out['src_tokens'].index_select(0, new_order),
             'src_key_padding' : encoder_out['src_key_padding'].index_select(0, new_order),
             'src_pad_idx' : self.src_pad_idx,
             'src_lengths' : encoder_out['src_lengths'].index_select(0, new_order)
         }
 
-class NNTransformerDecoder (FairseqDecoder):
+class Proposal10Decoder (FairseqDecoder):
     def __init__(
         self, max_tgt_len: int, dictionary, num_layer: int,
+        dim_fuzzy: int,
         dim_model: int, dim_feedforward: int, num_head: int, dropout: float
     ):
         super().__init__(dictionary)
@@ -94,8 +116,11 @@ class NNTransformerDecoder (FairseqDecoder):
             batch_first=True)
         self.nn_decoder = nn.TransformerDecoder(decoder_layer=decoder_layer, num_layers=num_layer)
 
+        self.fuzzy_membership = MembershipFunctionLayer(dim_model, dim_fuzzy)
+        self.fuzzy_rule = FuzzyRuleLayer()
+
         # Define the output projection.
-        self.output_projection = nn.Linear(dim_model, len(dictionary))
+        self.output_projection = nn.Linear(dim_model+dim_fuzzy+dim_fuzzy, len(dictionary))
         self.dropout = nn.Dropout(dropout)
 
     # During training Decoders are expected to take the entire target sequence
@@ -121,7 +146,7 @@ class NNTransformerDecoder (FairseqDecoder):
         tgt = self.embedding(prev_output_tokens)
         memory = encoder_out['context']
         tgt_len = prev_output_tokens.size(-1)
-        tgt_mask = self.get_square_mask(tgt_len) # only allow i<=j
+        tgt_mask = self._get_square_mask(tgt_len) # only allow i<=j
         memory_mask = None
         tgt_key_padding_mask = prev_output_tokens.eq(self.tgt_pad_idx)
         memory_key_padding_mask = encoder_out['src_key_padding']
@@ -131,16 +156,25 @@ class NNTransformerDecoder (FairseqDecoder):
             memory_mask=memory_mask, 
             tgt_key_padding_mask=tgt_key_padding_mask, 
             memory_key_padding_mask=memory_key_padding_mask)
+
+        src_fuzzy_feature = encoder_out['fuzzy_feature']
+        tgt_fuzzy_feature = self._fuzzy_block(tgt)
+
+        x = torch.cat((x,src_fuzzy_feature,tgt_fuzzy_feature), dim=-1)
         x = self.output_projection(x)
         return x, None
 
-    def get_square_mask(self, sz):
+    def _get_square_mask(self, sz):
         mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
         mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
         return mask
 
-@register_model('nntransformer')
-class NNTransformer(FairseqEncoderDecoderModel):
+    def _fuzzy_block (self, x):
+        x = self.fuzzy_rule(self.fuzzy_membership(x))
+        return x
+
+@register_model('proposal10')
+class Proposal10Transformer(FairseqEncoderDecoderModel):
     @staticmethod
     def add_args(parser):
         # Models can override this method to add new command-line arguments.
@@ -149,6 +183,10 @@ class NNTransformer(FairseqEncoderDecoderModel):
         parser.add_argument(
             '--num-layer', type=int, metavar='N',
             help='number of layers in encoder (decoder)',
+        )
+        parser.add_argument(
+            '--dim-fuzzy', type=int, metavar='N',
+            help='dimensionality of the fuzzy rule layer of both src feature and tgt feature',
         )
         parser.add_argument(
             '--dim-model', type=int, metavar='N',
@@ -182,33 +220,35 @@ class NNTransformer(FairseqEncoderDecoderModel):
         # instance can be of a different type than the one that was called.
         # In this case we'll just return a SimpleLSTMModel instance.
 
-        # Initialize our Encoder and Decoder.
-        encoder = NNTransformerEncoder(args.max_src_len,
+        encoder = Proposal10Encoder(args.max_src_len,
             dictionary=task.source_dictionary,
+            dim_fuzzy=args.dim_fuzzy,
             num_layer=args.num_layer,
             dim_model=args.dim_model,
             dim_feedforward= args.dim_feedforward,
             num_head=args.num_head,
             dropout=args.dropout)
-        decoder = NNTransformerDecoder(args.max_tgt_len,
+
+        decoder = Proposal10Decoder(args.max_tgt_len,
             dictionary=task.target_dictionary,
             num_layer=args.num_layer,
-            dim_model=args.dim_model,
+            dim_model=args.dim_model + args.dim_fuzzy,
             dim_feedforward= args.dim_feedforward,
             num_head=args.num_head,
             dropout=args.dropout
         )
-        model = NNTransformer(encoder, decoder)
+        model = Proposal10Transformer(encoder, decoder)
         return model
 
-@register_model_architecture('nntransformer', 'nntransformer_default')
+@register_model_architecture('proposal10', 'proposal10_default')
 def mytransformer_default(args):
     # We use ``getattr()`` to prioritize arguments that are explicitly given
     # on the command-line, so that the defaults defined below are only used
     # when no other value has been specified.
     args.num_layer = getattr(args, 'num_layer', 6)
+    args.dim_fuzzy = getattr(args, 'dim_fuzzy', 64)
     args.dim_model = getattr(args, 'dim_model', 512)
     args.dim_feedforward = getattr(args, 'dim_feedforward', 2048)
     args.num_head = getattr(args, 'num_head', 8)
-    args.max_src_len = getattr(args, 'max_src_len', 16378)
-    args.max_tgt_len = getattr(args, 'max_tgt_len', 16378)
+    args.max_src_len = getattr(args, 'max_src_len', 4096)
+    args.max_tgt_len = getattr(args, 'max_tgt_len', 4096)
