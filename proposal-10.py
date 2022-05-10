@@ -10,8 +10,8 @@ if torch.cuda.is_available():
 from typing import Optional
 from fairseq.models import FairseqEncoder, FairseqDecoder, FairseqEncoderDecoderModel, register_model, register_model_architecture
 from fairseq import utils
-from mymodel.models.layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
-from mymodel.models.layer.FuzzyRule import FuzzyRuleLayer
+from layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
+from layer.FuzzyRule import FuzzyRuleLayer
 from mymodel.models.nnFairseqTransformer import NNTransformerDecoder
 """
 PROPOSAL 10:
@@ -107,7 +107,7 @@ class Proposal10Decoder (FairseqDecoder):
         dim_model: int, dim_feedforward: int, num_head: int, dropout: float
     ):
         super().__init__(dictionary)
-        self.embedding = PositionalEncodedEmbedding(max_tgt_len, dim_model, len(dictionary), dictionary.pad())
+        self.embedding = PositionalEncodedEmbedding(max_tgt_len, dim_model+dim_fuzzy, len(dictionary), dictionary.pad())
         self.tgt_pad_idx = dictionary.pad()
 
         decoder_layer = nn.TransformerDecoderLayer(d_model=dim_model+dim_fuzzy,
@@ -117,7 +117,7 @@ class Proposal10Decoder (FairseqDecoder):
             batch_first=True)
         self.nn_decoder = nn.TransformerDecoder(decoder_layer=decoder_layer, num_layers=num_layer)
 
-        self.fuzzy_membership = MembershipFunctionLayer(dim_model, dim_fuzzy)
+        self.fuzzy_membership = MembershipFunctionLayer(dim_model+dim_fuzzy, dim_fuzzy)
         self.fuzzy_rule = FuzzyRuleLayer()
 
         # Define the output projection.
@@ -234,7 +234,7 @@ class Proposal10Transformer(FairseqEncoderDecoderModel):
         decoder = Proposal10Decoder(args.max_tgt_len,
             dictionary=task.target_dictionary,
             num_layer=args.num_layer,
-            dim_model=args.dim_model + args.dim_fuzzy,
+            dim_model=args.dim_model,
             dim_feedforward= args.dim_feedforward,
             num_head=args.num_head,
             dropout=args.dropout,
