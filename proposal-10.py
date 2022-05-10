@@ -15,8 +15,10 @@ from mymodel.models.layer.FuzzyRule import FuzzyRuleLayer
 from mymodel.models.nnFairseqTransformer import NNTransformerDecoder
 """
 PROPOSAL 10:
-Add two fuzzy layer as two feature extractor, parallel to the Transformer.
-Fuzzy Layers are inserted after input and output embedding
+Add two fuzzy layer as feature extractor:
+One parallel to Transformer Encoder,
+One parallel to the Transformer Decoder.
+Fuzzy Layers are inserted after input and output embedding, resp.
 """
 
 class Proposal10Encoder (FairseqEncoder):
@@ -62,10 +64,10 @@ class Proposal10Encoder (FairseqEncoder):
 
         x_fuzzy = self._fuzzy_block(src)
         x = self.nn_encoder(src, mask, src_key_padding)
+        x = torch.cat((x,x_fuzzy), dim=-1)
 
         return {
             'context' : x,
-            'fuzzy_feature' : x_fuzzy,
             'src_tokens' : src_tokens,
             'src_lengths' : src_lengths,
             'src_key_padding' : src_key_padding,
@@ -92,7 +94,6 @@ class Proposal10Encoder (FairseqEncoder):
         # }
         return {
             'context' : encoder_out['context'].index_select(0, new_order),
-            'fuzzy_feature' : encoder_out['fuzzy_feature'].index_select(0, new_order),
             'src_tokens' : encoder_out['src_tokens'].index_select(0, new_order),
             'src_key_padding' : encoder_out['src_key_padding'].index_select(0, new_order),
             'src_pad_idx' : self.src_pad_idx,
@@ -109,7 +110,7 @@ class Proposal10Decoder (FairseqDecoder):
         self.embedding = PositionalEncodedEmbedding(max_tgt_len, dim_model, len(dictionary), dictionary.pad())
         self.tgt_pad_idx = dictionary.pad()
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=dim_model,
+        decoder_layer = nn.TransformerDecoderLayer(d_model=dim_model+dim_fuzzy,
             nhead=num_head,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
@@ -157,10 +158,9 @@ class Proposal10Decoder (FairseqDecoder):
             tgt_key_padding_mask=tgt_key_padding_mask, 
             memory_key_padding_mask=memory_key_padding_mask)
 
-        src_fuzzy_feature = encoder_out['fuzzy_feature']
         tgt_fuzzy_feature = self._fuzzy_block(tgt)
 
-        x = torch.cat((x,src_fuzzy_feature,tgt_fuzzy_feature), dim=-1)
+        x = torch.cat((x,tgt_fuzzy_feature), dim=-1)
         x = self.output_projection(x)
         return x, None
 
@@ -186,7 +186,7 @@ class Proposal10Transformer(FairseqEncoderDecoderModel):
         )
         parser.add_argument(
             '--dim-fuzzy', type=int, metavar='N',
-            help='dimensionality of the fuzzy rule layer of both src feature and tgt feature',
+            help='dimensionality of the both fuzzy rule layer parallel to encoder and decoder',
         )
         parser.add_argument(
             '--dim-model', type=int, metavar='N',
@@ -220,6 +220,8 @@ class Proposal10Transformer(FairseqEncoderDecoderModel):
         # instance can be of a different type than the one that was called.
         # In this case we'll just return a SimpleLSTMModel instance.
 
+        assert args.dim_fuzzy % args.num_head == 0, \
+            "In proposal 10, num_head should divide dim_fuzzy"
         encoder = Proposal10Encoder(args.max_src_len,
             dictionary=task.source_dictionary,
             dim_fuzzy=args.dim_fuzzy,
