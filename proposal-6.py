@@ -34,6 +34,7 @@ class Proposal6Encoder (FairseqEncoder):
             batch_first=True)
         self.nn_encoder = nn.TransformerEncoder(encoder_layer=encoder_layer,
             num_layers=num_layer)
+        self.norm = nn.LayerNorm(dim_model)
         self.membership_layer = MembershipFunctionLayer(dim_model, dim_model)
         self.fuzzyrule_layer = FuzzyRuleLayer()
 
@@ -56,7 +57,9 @@ class Proposal6Encoder (FairseqEncoder):
         mask = None
         src_key_padding = src_tokens.eq(self.src_pad_idx)
         x = self.nn_encoder(src, mask, src_key_padding)
-        x = self.fuzzyrule_layer(self.membership_layer(x))
+
+        fuzzy = self.fuzzyrule_layer(self.membership_layer(x))
+        x = self.norm(x + fuzzy)
 
         return {
             'context' : x,
