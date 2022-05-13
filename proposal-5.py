@@ -43,7 +43,7 @@ class Proposal5EncoderLayer(nn.TransformerEncoderLayer):
     """
     __constants__ = ['batch_first', 'norm_first']
 
-    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation=F.relu,
+    def __init__(self, d_model, nhead, dim_fuzzy=128, dim_feedforward=2048, dropout=0.1, activation=F.relu,
                  layer_norm_eps=1e-5, batch_first=False, norm_first=False,
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
@@ -58,8 +58,10 @@ class Proposal5EncoderLayer(nn.TransformerEncoderLayer):
             norm_first=norm_first,
             device=device, 
             dtype=dtype)
-        self.fuzzy_membership = MembershipFunctionLayer(d_model, d_model)
+        self.fuzzy_membership = MembershipFunctionLayer(d_model, dim_fuzzy)
         self.fuzzy_rule = FuzzyRuleLayer()
+        self.linear0 = nn.Linear(dim_fuzzy, d_model)
+
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward, **factory_kwargs)
         self.dropout = nn.Dropout(dropout)
@@ -93,20 +95,21 @@ class Proposal5EncoderLayer(nn.TransformerEncoderLayer):
 
         x = src
         if self.norm_first:
-            x = x + self.fuzzy_block(self.norm1(x))
+            x = x + self.fuzzy_block_new(self.norm1(x))
             x = x + super()._ff_block(self.norm2(x))
         else:
-            x = self.norm1(x + self.fuzzy_block(x))
+            x = self.norm1(x + self.fuzzy_block_new(x))
             x = self.norm2(x + super()._ff_block(x))
         return x
 
-    def fuzzy_block (self, x: torch.Tensor)->torch.Tensor:
-        x = self.fuzzy_rule(self.fuzzy_membership(x))
+    def fuzzy_block_new (self, x: torch.Tensor)->torch.Tensor:
+        x = self.linear0(self.fuzzy_rule(self.fuzzy_membership(x)))
         return self.dropout1(x)
 
 
 class Proposal5Encoder (FairseqEncoder):
     def __init__(self, max_src_len: int, dictionary, num_layer: int,
+        dim_fuzzy: int,
         dim_model: int, dim_feedforward: int, num_head: int, dropout: float):
         super().__init__(dictionary)
         self.dictionary = dictionary
@@ -115,6 +118,7 @@ class Proposal5Encoder (FairseqEncoder):
         self.embedding = PositionalEncodedEmbedding(max_src_len, dim_model, len(dictionary), dictionary.pad())
         encoder_layer = Proposal5EncoderLayer(d_model=dim_model,
             nhead=num_head,
+            dim_fuzzy=dim_fuzzy,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
             batch_first=True)
@@ -232,6 +236,7 @@ class Proposal5Transformer(FairseqEncoderDecoderModel):
         decoder = NNTransformerDecoder(args.max_tgt_len,
             dictionary=task.target_dictionary,
             num_layer=args.num_layer,
+            dim_fuzzy=args.dim_fuzzy,
             dim_model=args.dim_model,
             dim_feedforward= args.dim_feedforward,
             num_head=args.num_head,
@@ -246,7 +251,7 @@ def mytransformer_default(args):
     # on the command-line, so that the defaults defined below are only used
     # when no other value has been specified.
     args.num_layer = getattr(args, 'num_layer', 6)
-    args.dim_fuzzy = getattr(args, 'dim_fuzzy', 128) # UNUSED
+    args.dim_fuzzy = getattr(args, 'dim_fuzzy', 128)
     args.dim_model = getattr(args, 'dim_model', 128)
     args.dim_feedforward = getattr(args, 'dim_feedforward', 2048)
     args.num_head = getattr(args, 'num_head', 8)
