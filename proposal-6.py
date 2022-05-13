@@ -142,6 +142,8 @@ class Proposal6Transformer(FairseqEncoderDecoderModel):
         # instance can be of a different type than the one that was called.
         # In this case we'll just return a SimpleLSTMModel instance.
 
+        assert args.dim_model == args.dim_fuzzy, \
+            "IN PROPOSAL 1-8, assert(dim_model == dim_fuzzy)"
         # Initialize our Encoder and Decoder.
         encoder = Proposal6Encoder(args.max_src_len,
             dictionary=task.source_dictionary,
@@ -167,8 +169,8 @@ def mytransformer_default(args):
     # on the command-line, so that the defaults defined below are only used
     # when no other value has been specified.
     args.num_layer = getattr(args, 'num_layer', 6)
-    args.dim_fuzzy = getattr(args, 'dim_fuzzy', 64) # UNUSED
     args.dim_model = getattr(args, 'dim_model', 128)
+    args.dim_fuzzy = getattr(args, 'dim_fuzzy', args.dim_model) # UNUSED
     args.dim_feedforward = getattr(args, 'dim_feedforward', 2048)
     args.num_head = getattr(args, 'num_head', 8)
     args.max_src_len = getattr(args, 'max_src_len', 4096)

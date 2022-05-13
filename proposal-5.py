@@ -60,7 +60,6 @@ class Proposal5EncoderLayer(nn.TransformerEncoderLayer):
             dtype=dtype)
         self.fuzzy_membership = MembershipFunctionLayer(d_model, dim_fuzzy)
         self.fuzzy_rule = FuzzyRuleLayer()
-        self.linear0 = nn.Linear(dim_fuzzy, d_model)
 
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward, **factory_kwargs)
@@ -103,7 +102,7 @@ class Proposal5EncoderLayer(nn.TransformerEncoderLayer):
         return x
 
     def fuzzy_block_new (self, x: torch.Tensor)->torch.Tensor:
-        x = self.linear0(self.fuzzy_rule(self.fuzzy_membership(x)))
+        x = self.fuzzy_rule(self.fuzzy_membership(x))
         return self.dropout1(x)
 
 
@@ -225,6 +224,8 @@ class Proposal5Transformer(FairseqEncoderDecoderModel):
         # instance can be of a different type than the one that was called.
         # In this case we'll just return a SimpleLSTMModel instance.
 
+        assert args.dim_model == args.dim_fuzzy, \
+            "IN PROPOSAL 1-8, assert(dim_model == dim_fuzzy)"
         # Initialize our Encoder and Decoder.
         encoder = Proposal5Encoder(args.max_src_len,
             dictionary=task.source_dictionary,
