@@ -15,8 +15,9 @@ from mymodel.models.nnFairseqTransformer import NNTransformerDecoder
 class Proposal3EncoderLayer(nn.TransformerEncoderLayer):
     r""""
     This is the nn.TransformerEncoderLayer, but with
-    the FuzzyLayer inserted after the first Add&Norm,
+    the FuzzyLayer (with its Add&Norm) inserted after the first Add&Norm,
     which is before the MultiHeadAttention.
+    In Proposal3, output of FuzzyLayer is dmodel. (Therefore dfuzzy==dmodel)
 
     Args:
         d_model: the number of expected features in the input (required).
@@ -71,8 +72,10 @@ class Proposal3EncoderLayer(nn.TransformerEncoderLayer):
         self.norm_first = norm_first
         self.norm1 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
         self.norm2 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
+        self.norm3 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
+        self.dropout3 = nn.Dropout(dropout)
 
         # Legacy string support for activation function.
         if isinstance(activation, str):
@@ -96,14 +99,18 @@ class Proposal3EncoderLayer(nn.TransformerEncoderLayer):
 
         x = src
         if self.norm_first:
-            y = self.fuzzy_rule(self.fuzzy_membership(x))
-            x = x + super()._sa_block(self.norm1(y), src_mask, src_key_padding_mask)
+            x = x + self.fuzzy_block(self.norm3(x))
+            x = x + super()._sa_block(self.norm1(x), src_mask, src_key_padding_mask)
             x = x + super()._ff_block(self.norm2(x))
         else:
-            y = self.fuzzy_rule(self.fuzzy_membership(x))
+            x = self.norm3(x + self.fuzzy_block(x))
             x = self.norm1(x + super()._sa_block(y, src_mask, src_key_padding_mask))
             x = self.norm2(x + super()._ff_block(x))
         return x
+
+    def fuzzy_block (self, x: torch.Tensor)->torch.Tensor:
+        x = self.fuzzy_rule(self.fuzzy_membership(x))
+        return self.dropout3(x)
 
 class Proposal3Encoder (FairseqEncoder):
     def __init__(self, max_src_len: int, dictionary, num_layer: int,
