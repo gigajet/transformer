@@ -104,7 +104,7 @@ class Proposal3EncoderLayer(nn.TransformerEncoderLayer):
             x = x + super()._ff_block(self.norm2(x))
         else:
             x = self.norm3(x + self.fuzzy_block(x))
-            x = self.norm1(x + super()._sa_block(y, src_mask, src_key_padding_mask))
+            x = self.norm1(x + super()._sa_block(x, src_mask, src_key_padding_mask))
             x = self.norm2(x + super()._ff_block(x))
         return x
 
