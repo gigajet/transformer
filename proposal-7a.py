@@ -53,7 +53,7 @@ class Proposal7AEncoder (FairseqEncoder):
         batch size, E is the feature number
         """
         src = self.embedding(src_tokens)
-        x = self.norm(x + self._fuzzy_block(x))
+        x = self.norm(src + self._fuzzy_block(src))
 
         mask = None
         src_key_padding = src_tokens.eq(self.src_pad_idx)
