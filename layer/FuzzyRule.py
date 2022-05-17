@@ -23,6 +23,28 @@ class MembershipFunctionLayer(nn.Module):
         output = torch.exp(temp)
         return output
 
+# Membership Function Layer, but support various seq_len
+class LengthVariedMembershipFunctionLayer(nn.Module):
+
+    def __init__(self, max_input_dim: int, output_dim: int) -> None:
+        super().__init__()
+        self.muy = nn.Parameter(torch.empty(max_input_dim, output_dim))
+        self.sigma = nn.Parameter(torch.ones(max_input_dim, output_dim))
+        nn.init.uniform_(self.muy)
+
+    """
+    input: (*, i)
+    output: (*, i, o)
+    """
+    def forward(self, input, **kwargs):
+        input_dim = input.size(-1)
+        muy = self.muy[:input_dim, :]
+        sigma = self.sigma[:input_dim, :]
+
+        input = torch.unsqueeze(input,-1) # (*, i, 1)
+        temp = -torch.square(input - muy) / torch.square(sigma) # (*, i, o)
+        output = torch.exp(temp)
+        return output
 
 class FuzzyRuleLayer(nn.Module):
 

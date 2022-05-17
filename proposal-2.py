@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from layer.FuzzyRule import MembershipFunctionLayer
+from layer.FuzzyRule import LengthVariedMembershipFunctionLayer, MembershipFunctionLayer
 if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 from typing import Optional
@@ -16,8 +16,10 @@ from mymodel.models.nnFairseqTransformer import NNTransformerDecoder, NNTransfor
 PROPOSAL 2
 MembershipFunctionLayer will replace InputEmbedding
 (We don't use FuzzyRule here)
+For impl reason, we use LengthVariedMembershipFunctionLayer
 
 DISCONTINUE REASON: SINCE SEQ_LEN IS NOT FIXED, WE CAN'T PROVIDE SEQ_LEN as input_dim to MembershipFunctionLayer
+CONTINUE REASON: We can pass MAX_SEQ_LEN to MembershipFunctionLayer
 """
 
 class Proposal2Encoder (FairseqEncoder):
@@ -28,10 +30,10 @@ class Proposal2Encoder (FairseqEncoder):
         self.dictionary = dictionary
         self.src_pad_idx = dictionary.pad()
 
-        self.embedding = PositionalEncodedEmbedding(max_src_len, dim_model, len(dictionary), dictionary.pad())
-        encoder_layer = Proposal2EncoderLayer(d_model=dim_model,
-            nhead=num_head, 
-            dim_fuzzy=dim_fuzzy,
+        # self.embedding = PositionalEncodedEmbedding(max_src_len, dim_model, len(dictionary), dictionary.pad())
+        self.embedding = LengthVariedMembershipFunctionLayer(max_src_len, output_dim=dim_model)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=dim_model,
+            nhead=num_head,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
             batch_first=True)
@@ -164,8 +166,8 @@ def mytransformer_default(args):
     # on the command-line, so that the defaults defined below are only used
     # when no other value has been specified.
     args.num_layer = getattr(args, 'num_layer', 6)
-    args.dim_fuzzy = getattr(args, 'dim_fuzzy', 64)
     args.dim_model = getattr(args, 'dim_model', 256)
+    args.dim_fuzzy = getattr(args, 'dim_fuzzy', args.dim_model)
     args.dim_feedforward = getattr(args, 'dim_feedforward', 2048)
     args.num_head = getattr(args, 'num_head', 8)
     args.max_src_len = getattr(args, 'max_src_len', 4096)
