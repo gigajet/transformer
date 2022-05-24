@@ -15,7 +15,6 @@ CLEAN=$SCRIPTS/training/clean-corpus-n.perl
 BPEROOT=subword-nmt/subword_nmt
 BPE_TOKENS=10000
 
-URL="https://wit3.fbk.eu/archive/2016-01/texts/en/fr/en-fr.tgz"
 GZ=en-fr.tgz
 
 if [ ! -d "$SCRIPTS" ]; then
@@ -32,9 +31,12 @@ orig=orig
 
 mkdir -p $orig $tmp $prep
 
-echo "Downloading data from ${URL}..."
+echo "Downloading data of ${GZ}..."
 cd $orig
-wget "$URL"
+pip install gdown
+gdown https://drive.google.com/uc?id=1KpNH2mN5YvVIbBAXOBFX_nLEYuSfezvZ
+# mv $GZ $orig/$GZ
+# wget "$URL"
 
 if [ -f $GZ ]; then
     echo "Data successfully downloaded."
@@ -89,11 +91,12 @@ for l in $src $tgt; do
     awk '{if (NR%23 == 0)  print $0; }' $tmp/train.tags.de-en.$l > $tmp/valid.$l
     awk '{if (NR%23 != 0)  print $0; }' $tmp/train.tags.de-en.$l > $tmp/train.$l
 
-    cat $tmp/IWSLT14.TED.dev2010.de-en.$l \
-        $tmp/IWSLT14.TEDX.dev2012.de-en.$l \
-        $tmp/IWSLT14.TED.tst2010.de-en.$l \
-        $tmp/IWSLT14.TED.tst2011.de-en.$l \
-        $tmp/IWSLT14.TED.tst2012.de-en.$l \
+    cat $tmp/IWSLT16.TED.dev2010.en-fr.$l \
+        $tmp/IWSLT16.TED.tst2010.en-fr.$l \
+        $tmp/IWSLT16.TED.tst2011.en-fr.$l \
+        $tmp/IWSLT16.TED.tst2012.en-fr.$l \
+        $tmp/IWSLT16.TED.tst2013.en-fr.$l \
+        $tmp/IWSLT16.TED.tst2014.en-fr.$l
         > $tmp/test.$l
 done
 
