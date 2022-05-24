@@ -96,7 +96,7 @@ for l in $src $tgt; do
         $tmp/IWSLT16.TED.tst2011.en-fr.$l \
         $tmp/IWSLT16.TED.tst2012.en-fr.$l \
         $tmp/IWSLT16.TED.tst2013.en-fr.$l \
-        $tmp/IWSLT16.TED.tst2014.en-fr.$l
+        $tmp/IWSLT16.TED.tst2014.en-fr.$l \
         > $tmp/test.$l
 done
 
