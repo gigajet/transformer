@@ -88,8 +88,8 @@ done
 
 echo "creating train, valid, test..."
 for l in $src $tgt; do
-    awk '{if (NR%23 == 0)  print $0; }' $tmp/train.tags.de-en.$l > $tmp/valid.$l
-    awk '{if (NR%23 != 0)  print $0; }' $tmp/train.tags.de-en.$l > $tmp/train.$l
+    awk '{if (NR%23 == 0)  print $0; }' $tmp/train.tags.en-fr.$l > $tmp/valid.$l
+    awk '{if (NR%23 != 0)  print $0; }' $tmp/train.tags.en-fr.$l > $tmp/train.$l
 
     cat $tmp/IWSLT16.TED.dev2010.en-fr.$l \
         $tmp/IWSLT16.TED.tst2010.en-fr.$l \
@@ -100,7 +100,7 @@ for l in $src $tgt; do
         > $tmp/test.$l
 done
 
-TRAIN=$tmp/train.en-de
+TRAIN=$tmp/train.en-fr
 BPE_CODE=$prep/code
 rm -f $TRAIN
 for l in $src $tgt; do
