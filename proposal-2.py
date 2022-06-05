@@ -8,9 +8,9 @@ if torch.cuda.is_available():
 from typing import Optional
 from fairseq.models import FairseqEncoder, FairseqDecoder, FairseqEncoderDecoderModel, register_model, register_model_architecture
 from fairseq import utils
-from mymodel.models.layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
-from mymodel.models.layer.FuzzyRule import MembershipFunctionLayer
-from mymodel.models.nnFairseqTransformer import NNTransformerDecoder, NNTransformerEncoder
+from layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
+from layer.FuzzyRule import MembershipFunctionLayer
+from nnFairseqTransformer import NNTransformerDecoder, NNTransformerEncoder
 
 """
 PROPOSAL 2

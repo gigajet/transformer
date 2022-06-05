@@ -12,7 +12,7 @@ from fairseq.models import FairseqEncoder, FairseqDecoder, FairseqEncoderDecoder
 from fairseq import utils
 from layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
 from layer.FuzzyRule import FuzzyRuleLayer
-from mymodel.models.nnFairseqTransformer import NNTransformerDecoder
+from nnFairseqTransformer import NNTransformerDecoder
 """
 PROPOSAL 10:
 Add two fuzzy layer as feature extractor:
