@@ -5,9 +5,9 @@ if torch.cuda.is_available():
 from typing import Optional
 from fairseq.models import FairseqEncoder, FairseqDecoder, FairseqEncoderDecoderModel, register_model, register_model_architecture
 from fairseq import utils
-from mymodel.models.layer.TransformerDecoder import TransformerDecoder
-from mymodel.models.layer.TransformerEncoder import TransformerEncoder
-from mymodel.models.layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
+from layer.TransformerDecoder import TransformerDecoder
+from layer.TransformerEncoder import TransformerEncoder
+from layer.PositionalEncodedEmbedding import PositionalEncodedEmbedding
 
 class MyTransformerEncoder (FairseqEncoder):
     def __init__(self, args, dictionary, num_layer: int,
