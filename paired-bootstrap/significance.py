@@ -1,6 +1,5 @@
 import argparse
-from logging import error, info, log
-from warnings import warn
+from logging import error, info
 import sacrebleu
 import os
 import random
