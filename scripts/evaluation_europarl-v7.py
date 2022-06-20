@@ -7,7 +7,6 @@ for model_name in os.listdir("checkpoints"):
     cmd = """
 fairseq-generate dataset/europarl-v7/{language_pair} \
     --path checkpoints/{model_name}/checkpoint_best.pt \
-    --log-file eval/{model_name}/{model_name}.txt \
     --batch-size 128 --beam 5 --remove-bpe \
     --user-dir .""".format(
         language_pair=language_pair,
