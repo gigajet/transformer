@@ -41,7 +41,7 @@ fairseq-generate {full_dataset_dir} \\
                 f_cmd.write(cmd)
                 f_cmd.close()
                 exit_code = subprocess.call(cmd, shell=True, stdout=f_out, stderr=f_err)
-                print("["+model_name+']','fairseq_generate returns',exit_code)
+                print("["+model_name+']'+'['+setname+']','fairseq_generate returns',exit_code)
                 if exit_code != 0:
                     print('Unsuccessful')
                     exit(1)
