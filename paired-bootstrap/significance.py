@@ -123,12 +123,6 @@ def run(args):
     for i in tqdm.tqdm(range(n), 'Broad sample'):
         bs = broad_sample[i]
         sig = statistical_significance (bs, args.num_bootstrap_samples)
-        result.append([sig, bs])
-
-    result.sort(key=lambda x : x[0], reverse=True) # Sort descending by statistical significance
-    print('Outputting results...')
-    for i in range(len(result)):
-        sig, bs = result[i]
         with open(os.path.join(output_dir, "{0}-{1}.txt".format(i, sig)), 'w') as f_out:
             num_sent = len(bs)
             info('Broad sample {0} has {1} sentences with statistical significance {2}.'.format(i,num_sent,sig))
