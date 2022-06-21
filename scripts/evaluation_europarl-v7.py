@@ -4,10 +4,11 @@ import sys
 
 if __name__=="__main__":
     if len(sys.argv) < 4:
-        print("usage:",sys.argv[0],"path/to/europarl-v7/dataset/dir","path/to/checkpoints/dir","path/to/cloned/transformer/github/folder", "[path/to/output/dir]")
+        print("usage:",sys.argv[0],"path/to/europarl-v7/dataset/dir","path/to/checkpoints/dir","path/to/user/dir", "[path/to/output/dir]")
         print()
         print('THIS SCRIPT IS REQUIRED TO RUN AT ROOT OF GITHUB FOLDER')
         print("where dataset dir contains 3 subfolders 'cs-en','de-en','fr-en', and checkpoints dir contains <model_name>'s as subfolder.")
+        print("inside the user dir is directory 'models', which inside is content of github.com/gigajet/transformer, include fixed")
         print("if output dir not specified, it is default as 'eval'. Each subfolder inside output folder contains respective log.")
         exit(1)
     dataset_dir = sys.argv[1]
