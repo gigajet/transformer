@@ -25,7 +25,7 @@ if __name__=="__main__":
             cmd = """\
 fairseq-generate {full_dataset_dir} \\
     --path {full_checkpoint_dir} \\
-    --gen-subset {fairseq_setname}
+    --gen-subset {fairseq_setname} \\
     --batch-size 128 --beam 5 --remove-bpe \\
     --user-dir {user_dir}""".format(
                 full_dataset_dir=os.path.join(dataset_dir, language_pair),
