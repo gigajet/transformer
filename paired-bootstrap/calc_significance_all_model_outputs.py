@@ -18,7 +18,7 @@ if __name__=="__main__":
             output_dir = os.path.join(OUT_ROOT, dset, model.split('.')[0]+"-vs-baseline")
 
             cmd = """\
-python significance.py -n {0} -m {1} \
+python paired-bootstrap/significance.py -n {0} -m {1} \
 -o {out} {src} {gt} {a} {b}""".format(
     NUM_BROAD_SAMPLES, NUM_BOOTSTRAP_EACH_BROAD_SAMPLE,
     out=output_dir, src=src_path, gt=gt_path, a=model_A_path, b=model_B_path
