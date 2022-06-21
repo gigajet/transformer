@@ -34,6 +34,7 @@ fairseq-generate {full_dataset_dir} \\
             open(os.path.join(output_dir,model_name,"stdout-"+model_name+".log"), 'w') as f_out, \
             open(os.path.join(output_dir,model_name,"stderr-"+model_name+".log"), 'w') as f_err:
             f_cmd.write(cmd)
+            f_cmd.close()
             exit_code = subprocess.call(cmd, shell=True, stdout=f_out, stderr=f_err)
             print("["+model_name+']','fairseq_generate returns',exit_code)
             if exit_code != 0:
