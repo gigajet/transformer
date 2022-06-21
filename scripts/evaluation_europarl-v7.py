@@ -44,4 +44,4 @@ fairseq-generate {full_dataset_dir} \\
                 print("["+model_name+']','fairseq_generate returns',exit_code)
                 if exit_code != 0:
                     print('Unsuccessful')
-                    break
+                    exit(1)
