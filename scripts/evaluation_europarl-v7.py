@@ -18,11 +18,11 @@ if __name__=="__main__":
     os.makedirs(output_dir, exist_ok=True)
     for model_name in os.listdir(checkpoint_dir):
         language_pair = model_name.split('.')[0][-5::]
-        cmd = """
-fairseq-generate {full_dataset_dir} \
-    --path {full_checkpoint_dir} \
-    --log-file {full_logfile_dir} \
-    --batch-size 128 --beam 5 --remove-bpe \
+        cmd = """\
+fairseq-generate {full_dataset_dir} \\
+    --path {full_checkpoint_dir} \\
+    --log-file {full_logfile_dir} \\
+    --batch-size 128 --beam 5 --remove-bpe \\
     --user-dir {user_dir}""".format(
             full_dataset_dir=os.path.join(dataset_dir, language_pair),
             full_checkpoint_dir=os.path.join(checkpoint_dir,model_name,"checkpoint_best.pt"),
