@@ -31,7 +31,7 @@ fairseq-generate {full_dataset_dir} \\
                 full_dataset_dir=os.path.join(dataset_dir, language_pair),
                 full_checkpoint_dir=os.path.join(checkpoint_dir,model_name,"checkpoint_best.pt"),
                 full_logfile_dir=os.path.join(output_dir,model_name,model_name+".txt"),
-                fairseq_setname=fairseq_setname
+                fairseq_setname=fairseq_setname,
                 user_dir=user_dir,
                 )
             os.makedirs(os.path.join(output_dir,model_name), exist_ok=True)
