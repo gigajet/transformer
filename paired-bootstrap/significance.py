@@ -104,7 +104,7 @@ def run(args):
     i = 0 # 0..n-1
     broad_sample = {}
     for j in range(n):
-        broad_sample[j] = [] # [src, gt, model_A, model_B]
+        broad_sample[j] = [] # each element of this list is another list [src, gt, model_A, model_B]
 
     with open(args.source_path) as f_src, \
         open(args.ground_truth_path) as f_gt, \
