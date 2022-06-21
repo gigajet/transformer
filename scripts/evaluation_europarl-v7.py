@@ -35,7 +35,7 @@ fairseq-generate {full_dataset_dir} \\
                 user_dir=user_dir,
                 )
             os.makedirs(os.path.join(output_dir,model_name), exist_ok=True)
-            with open(os.path.join(output_dir,model_name,"eval_command.log"), 'w') as f_cmd, \
+            with open(os.path.join(output_dir,model_name,"eval_command."+setname+".log"), 'a') as f_cmd, \
                 open(os.path.join(output_dir,model_name,"stdout."+setname+".log"), 'w') as f_out, \
                 open(os.path.join(output_dir,model_name,"stderr."+setname+".log"), 'w') as f_err:
                 f_cmd.write(cmd)
