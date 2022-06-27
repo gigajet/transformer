@@ -9,7 +9,7 @@ NUM_BOOTSTRAP_EACH_BROAD_SAMPLE = 5000
 if __name__=="__main__":
     for dset in os.listdir(ROOT):
         for model in os.listdir(os.path.join(ROOT,dset)):
-            if model.startswith('baseline') or model.startswith('ground_truth'):
+            if model.startswith('baseline') or model.startswith('ground_truth') or model.startswith('source'):
                 continue
             src_path = os.path.join(ROOT,dset,'source.txt')
             gt_path = os.path.join(ROOT,dset,'ground_truth.txt')
